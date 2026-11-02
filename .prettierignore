@@ -7,9 +7,9 @@ package-lock.json
 .env.*
 !.env.example
 
-# Especificaciones originales: preservar su formato.
-docs/AGENTS.md
-docs/ARCHITECTURE.md
-docs/PRODUCT_RULES.md
-docs/ROADMAP.md
+# Requisitos originales: preservar bytes y bloque normativo literal.
+docs/history/PRODUCT_RULES_FINANCE_V0.1.md
+docs/agents/FINANCE_AGENT_SPEC.md
+
+# Prompt original de Fase 0; su formato es histórico.
 docs/CODEX_START_PROMPT.md

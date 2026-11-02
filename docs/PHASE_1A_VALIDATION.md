@@ -1,5 +1,11 @@
 # Fase 1A — entrega y verificación
 
+> Registro histórico del PR #2, ya fusionado. Posteriormente, el 2026-11-02,
+> el operador reportó que las pruebas con Telegram real salieron correctamente.
+> Esa aceptación reportada se distingue de los tests simulados registrados abajo.
+> Las referencias normativas antiguas apuntan al snapshot conservado; los siguientes
+> pasos fueron reemplazados por el [roadmap del orquestador](ROADMAP.md).
+
 Rama: `feat/telegram-integration`, desde `main` después del PR #1. Alcance:
 protección de `main` y transporte Telegram; sin lógica financiera, IA ni despliegue.
 
@@ -97,7 +103,7 @@ Antes del commit se revisan los archivos staged, las exclusiones `.env`/artefact
 y patrones de credenciales, sin imprimir valores. Solo se versiona `.env.example`
 vacío de secretos; los tokens de pruebas son canarios explícitamente ficticios.
 
-Se aplican [PRODUCT_RULES.md](PRODUCT_RULES.md) **§1** (Telegram y credenciales
+Se aplican [reglas originales](history/PRODUCT_RULES_FINANCE_V0.1.md) **§1** (Telegram y credenciales
 propias), **§12** (IA apagada, sin proveedores o compras automáticas), **§13**
 (respuestas breves sin recordatorios) y **§14** (sin banca, pagos, modelos locales
 ni entrenamiento). No se cambia ninguna regla financiera. No se habilitó
