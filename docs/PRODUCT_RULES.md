@@ -1,125 +1,133 @@
-# Jarvis — reglas funcionales consensuadas (v0.1)
+# Sir Jarvis — reglas del orquestador
 
-**Estado:** decisiones de levantamiento de requisitos, 2026-11-01. Fuente de verdad del comportamiento esperado; **no equivalen a funcionalidades implementadas**. Cuando haya ambigüedad, preferir no duplicar ni inventar operaciones y pedir confirmación.
+**Decisión funcional explícita, 2026-11-02:** Jarvis pasa de la propuesta de asistente
+con finanzas internas a un orquestador de agentes independientes. Esta decisión
+cambia la frontera de proyectos; las reglas financieras no se eliminan ni se
+reinterpretan. Su fuente actual es [Finance Agent](agents/FINANCE_AGENT_SPEC.md).
+La [copia original](history/PRODUCT_RULES_FINANCE_V0.1.md) y la
+[trazabilidad](agents/FINANCE_AGENT_TRACEABILITY.md) conservan todas sus condiciones.
+Estas reglas describen comportamiento objetivo; no equivalen a funciones implementadas.
 
-## 1. Perfil e interacción
+## ORC-01 — Identidad y límites
 
-- Jarvis es un asistente personal general, cuya **primera habilidad** es finanzas. Debe permitir agregar herramientas con el tiempo (Calendar, MCP, web/PWA).
-- Interfaz inicial: Telegram. Recibe texto; posteriormente notas de voz, imágenes y responde audio generado. Conversación en voz en tiempo real queda para la web/PWA futura.
-- Configuración por conversación, sin depender de formularios o Excel. Se puede enviar factura o imagen + una explicación hablada para crear deudas existentes.
-- Personalidad: cercana, con humor opcional, consejos útiles y nunca humillación. Personalización por instalación.
-- Confirmaciones de seguridad, presupuesto y operaciones ambiguas en el mismo chat de origen.
-- Modelo de instalación: self-hosted / BYOK; cada persona instala recursos y claves propias.
+Jarvis ofrece interfaz conversacional, coordinación, permisos y distribución de
+notificaciones. Cada agente conectado es una aplicación independiente que puede
+funcionar sin Jarvis, con repositorio, lenguaje, datos, licencia y alojamiento
+propios. Su publicación o comercialización es una decisión del proyecto externo.
+Jarvis no incorpora reglas de finanzas, vuelos, deportes u otros dominios.
+La integración depende de contratos versionados y capacidades explícitas, sin
+modificar el núcleo por cada agente.
 
-## 2. Categorías, gastos e ingresos ordinarios
+## ORC-02 — Identidad y autorización
 
-- Puede comenzar con categorías/subcategorías predeterminadas **o** crearlas desde cero durante el onboarding. Se pueden editar, ampliar o borrar posteriormente, preservando integridad histórica.
-- Jarvis aprende clasificaciones por correcciones y preferencias persistidas. Los gastos expresados claramente por texto/audio se registran sin confirmación cuando haya suficiente confianza; ante ambigüedad pregunta.
-- Ej.: «Gasté $3.200 en la buseta» → Transporte / transporte público, una vez aprendida la categoría.
-- Ingresos variables (trabajo adicional, ganancias extraordinarias) y gastos cotidianos se registran individualmente.
-- **No todo dinero entrante es ingreso ganado.** Préstamos recibidos y reembolsos no deben inflar ingresos.
-- Pagos de deudas cuentan como **salidas mensuales de dinero**, pero NO deben duplicarse como compra original + todas las cuotas en un mismo indicador de consumo. Ofrecer vistas claras de flujo de caja y consumo.
+La instalación inicial pertenece a un operador; Telegram autoriza por IDs
+numéricos y chat privado, nunca por username. La allowlist explícita no equivale
+a aislamiento multiusuario. Antes de compartir datos o ejecutar una capacidad,
+validar instancia, sujeto, agente habilitado, capacidad y permiso vigente.
+Un resultado, manifiesto o evento de un agente no puede ampliar permisos,
+registrar agentes, elegir destinatarios ni activar herramientas por sí mismo.
 
-## 3. Presupuestos por categoría
+## ORC-03 — Privacidad y credenciales
 
-- Presupuestos **mensuales**, sin arrastre de saldo restante al mes siguiente.
-- Al inicio de cada mes, un solo mensaje pregunta si se quieren ajustar categorías y montos. Si no hay respuesta, se copian los últimos importes confirmados, reiniciando gasto acumulado a cero.
-- En el mismo chat se pueden reajustar presupuestos, sin reescribir meses históricos.
-- Alerta al cruzar **80 %** y otra al alcanzar/superar **100 %**, máximo una de cada umbral por categoría y periodo. Si un gasto pasa de golpe al 100 %, emitir solo la del 100 % en ese evento. Se reinician avisos el siguiente mes.
-- Avisos amistosos y breves, sin recordatorios diarios ni repeticiones.
-- Los porcentajes deben poder configurarse en el futuro; 80 y 100 son defaults.
+Usar credenciales propias, server-only, separadas por integración y privilegio
+mínimo. No enviarlas dentro de mensajes JSON, URLs de configuración/usuario o
+respuestas de canales ni guardarlas en logs o commits. Única excepción de
+transporte existente: la Bot API oficial de Telegram exige el token en la ruta
+HTTPS al host fijo `api.telegram.org`; esa URL queda dentro del cliente servidor,
+sin redirects, nunca se expone al usuario ni se registra. No extender esta
+excepción a agentes: su autenticación va en headers, no en URLs. Los secretos
+se resuelven localmente por referencias y transporte seguro.
+Enviar a cada agente únicamente los datos necesarios y aprobados para su tarea.
+No enviar datos personales, comprobantes ni datos financieros a servicios o
+modelos sin políticas efectivas de no entrenamiento y retención aceptable.
+Un nivel gratuito o un agregador no garantiza privacidad. Sin ruta elegible,
+fallar cerrado; no sustituirla por una insegura. No entrenar con datos privados.
 
-## 4. Deudas de compras financiadas y cuotas
+## ORC-04 — Costos y autorización
 
-- Onboarding de deuda: pedir valor financiado, número de cuotas, valor de cuota, tasa de interés E.A. cuando se conozca, fecha y saldo inicial conocido; la falta de tasa no bloquea el alta.
-- **Modo informado:** si hay tasa, plazo y condiciones suficientes, calcular amortización estimada y separar capital/intereses; recalcular o conciliar con extracto real. No prometer exactitud si hay comisiones/seguros/cambios de tasa.
-- **Modo simplificado:** descontar pagos registrados del saldo de referencia como **estimación**, indicando que parte del pago puede corresponder a intereses. No etiquetar el resultado como saldo bancario exacto.
-- Si deuda precede a Jarvis, guardar **resumen inicial** de cantidad de cuotas históricas pagadas y dinero desembolsado, sin reconstruirlas una a una. No cargar esas cuotas como gasto del mes de alta.
-- Solo los pagos efectivamente **confirmados** reducen deuda. Admitir pago parcial o total y conservar el movimiento con fecha.
-- Cada cuota pagada es un movimiento de caja único; se refleja también en informes de pagos del mes sin duplicación.
-- No emitir notificaciones proactivas de vencimientos de deuda.
+Ninguna integración puede generar gastos sin habilitación expresa y presupuesto
+configurado. Separar infraestructura, operación autónoma de cada agente y consumo
+de proveedores de IA. Registrar un endpoint, aceptar un evento o planear USD 25 de
+infraestructura no autoriza compras ni facturación. Priorizar opciones gratuitas
+solo si cumplen privacidad y capacidad; no ejecutar modelos locales al inicio.
+Antes de cualquier futura llamada paga, comprobar autorización y presupuesto,
+reservar consumo concurrente y usar topes del proveedor cuando existan. Las
+estimaciones locales no garantizan un límite de facturación por carreras, latencia,
+cargos externos o cambios de precios. Ante incertidumbre, detener la ruta.
+Actualmente IA permanece deshabilitada y no hay agentes conectados.
 
-## 5. Facturas y gastos fijos
+## ORC-05 — Confirmaciones y confianza
 
-- Generar automáticamente una obligación mensual **pendiente** por cada concepto recurrente (internet, energía, arriendo, etc.). No marcarla pagada en fecha presumida.
-- Gastos variables recurrentes: estimación inicial = **último valor efectivamente pagado**. Mostrar claramente que es estimado y actualizar a importe real al confirmar.
-- Cada periodo tiene su propia obligación: noviembre impago y diciembre pendiente coexisten; total pendiente suma ambas. Al pagar, asociar mes concreto, preguntando si es ambiguo.
-- Para **facturas de servicios**, la primera versión soporta pago completo (no parcial). Los préstamos/deudas personales sí admiten abonos parciales.
-- No generar recordatorios de facturas pendientes, por petición explícita; sí permitir consultas a demanda.
+Pedir aclaración ante baja confianza, ambigüedad o falta de información. Obtener
+las confirmaciones requeridas antes de acciones sensibles; conservar el canal de
+origen para preguntas de seguridad y costo. La interpretación por IA nunca
+concede permisos ni confirma efectos. El agente de dominio valida sus propias
+reglas y confirmaciones; Jarvis presenta preguntas y resultados sin inventar
+datos ni estados exitosos. Un timeout no demuestra que la operación haya fallado.
 
-## 6. Salario neto, cuentas por cobrar de empleador
+## ORC-06 — Propiedad de datos
 
-- Usar **salario neto**, configurable y versionado por vigencia para no modificar historiales.
-- Cargar en onboarding solo periodos recientes impagos, **desglosados por mes**, no importar Excel ni reconstruir todo el pasado.
-- Al **cierre del mes trabajado**, generar salario esperado pendiente por cobrar; fecha habitual límite de pago configurada, por defecto **día 5 del mes siguiente**; desde el día 6, saldo no recibido es vencido.
-- Los pagos pueden ser parciales e irregulares en varios días. Cada abono es dinero realmente recibido y se imputa automáticamente **FIFO al periodo salarial más antiguo**, pudiendo cubrir más de un periodo. Si supera todo lo pendiente, preguntar cómo tratar el excedente.
-- No añadir el salario devengado como dinero disponible; diferenciar devengado, recibido, pendiente y vencido.
-- Al registrar abonos, contestar **solo confirmación breve**, no anunciar espontáneamente cuánto sigue debiendo el empleador. Saldo se revela a solicitud.
+Cada agente es la fuente de verdad de su dominio. Jarvis podrá persistir
+configuración, registro, permisos, preferencias, estados y referencias de
+solicitudes/eventos y auditoría mínima. No copiar dentro de Jarvis libros
+financieros, saldos, comprobantes, catálogos internos ni bases completas ajenas.
+No almacenar conversaciones o resultados completos por defecto. Los datos
+transitorios, sus límites y borrado se definen explícitamente por integración.
+Las correcciones de preferencias y decisiones deben ser auditables, sin
+reescribir silenciosamente historiales.
 
-## 7. Préstamos entre personas
+## ORC-07 — Integración desacoplada
 
-- Permitir **dinero que pido prestado** y **dinero que presto a otros** con cualquier persona, no codificar «hermano» o «mamá».
-- Mantener **un saldo agregado por contraparte y dirección** (me debe / le debo), con libro de movimientos individuales y fechas. No perder trazabilidad al acumular.
-- Admitir desembolsos múltiples, abonos parciales y liquidación total.
-- Dinero tomado prestado es entrada de caja + pasivo, **no ingreso ganado**. Devolver capital es salida de caja + reducción de pasivo, **no consumo nuevo**.
-- Dinero prestado a terceros es salida de caja + cuenta por cobrar, **no gasto de consumo**. Devolución es entrada de caja + reducción de cuenta por cobrar, **no ingreso ganado**.
-- Ante ambigüedad de persona/dirección, preguntar.
+Usar [AGENT_PROTOCOL v1](AGENT_PROTOCOL.md), inicialmente HTTPS y JSON.
+Identidad y capacidades declaradas no implican confianza: el operador registra
+conexión y permisos. Validar entradas, salidas, versiones y schemas antes de
+presentar o ejecutar datos. Tratar resultados como datos no confiables, nunca
+como instrucciones para cambiar políticas o ejecutar SQL/herramientas arbitrarias.
+MCP queda como adaptación futura bajo los mismos permisos; no se implementa ahora.
 
-## 8. Suscripciones personales y compartidas
+## ORC-08 — Idempotencia y auditoría
 
-- Todas las suscripciones mensuales generan obligación **pendiente** y solo se marcan pagadas por confirmación (no asumir cobro por tarjeta).
-- Suscripción personal: el importe confirmado es gasto personal.
-- Suscripción compartida: cuando se **confirma que el usuario pagó** el total, dividir en partes iguales entre participantes incluyendo al titular cuando corresponda. Registrar la salida de caja total, su participación como gasto personal y cuentas por cobrar de los demás, **sin doble conteo**.
-- El reparto equitativo es la regla definida; no implementar montos personalizados salvo nueva decisión.
-- Agregar o retirar participantes con efecto hacia **futuros periodos**, sin alterar deudas de periodos pasados.
-- Si alguien debe varias mensualidades y envía abono, aplicar FIFO a la más antigua; conservar saldo por periodo y consolidado por persona.
-- Reembolso recibido reduce cuenta por cobrar; no es nuevo ingreso ganado.
-- No enviar recordatorios automáticos de cobro a otras personas; no se ha solicitado mensajería hacia terceros.
+Separar IDs de solicitud, correlación, operación, evento y clave de idempotencia.
+Conservar la clave al reintentar una misma operación; rechazar su reutilización
+con datos distintos. Autorizar antes de reservar o ejecutar. El agente garantiza
+idempotencia de efectos de negocio y Jarvis de sus transiciones y distribución.
+Los eventos externos requieren autenticación, protección contra replay y
+deduplicación durable antes de producir efectos. Un efecto incierto requiere
+consulta o conciliación, no repetición a ciegas. No prometer entrega exactamente
+una vez por Telegram. Registrar metadatos mínimos sin contenido sensible.
 
-## 9. Comprobantes e imágenes
+## ORC-09 — Notificaciones y autonomía
 
-- Comprobantes opcionales para cualquier movimiento. **Almacenar solo archivos enviados por el usuario**, no generar ni exigir recibos para todo gasto.
-- Si llega imagen **sin contexto**, analizar y preguntar qué significa antes de crear/relacionar movimiento. Si llega con explicación, usarla, pero confirmar identificación y vinculación antes de operaciones delicadas.
-- Si la imagen es borrosa/incompleta, guardarla como **borrador privado pendiente de confirmación** y solicitar los datos faltantes; no registrar movimiento definitivo a partir de datos inventados.
-- Buscar archivos por fecha, monto, persona, deuda, categoría o descripción. Si hay varios coincidentes, pedir desambiguación. Entregar el **archivo original** cuando el usuario lo solicite.
-- Guardar de forma privada (bucket privado, control de acceso, URLs firmadas temporales) y vínculo a movimiento. Evitar volcar datos en logs o IA cuando no hagan falta.
-- **Cada seis meses**, emitir una revisión de almacenamiento: ofrecer backup ZIP + índice CSV y opciones conservar/eliminar algunos/todos. **Nunca eliminar automáticamente** sin confirmación expresa; preservar registro del movimiento aunque se borre archivo.
+Jarvis solo distribuye tipos de evento y destinos habilitados expresamente por
+el operador. Una firma válida no equivale a consentimiento. Revalidar permisos,
+suscripción y destinatario al recibir y entregar el evento; ignorar destinos
+propuestos por el agente. Un agente puede programar tareas en su propia aplicación
+con autorización y presupuesto independientes; Jarvis no asume su scheduler.
+Mantener mensajes breves y evitar duplicados. Las políticas específicas de
+notificación, incluidas las restricciones financieras ya acordadas, pertenecen
+al agente y no se amplían al conectarlo. No contactar terceros sin autorización.
 
-## 10. Ingresos extraordinarios de apuestas
+## ORC-10 — Preferencias y aprendizaje
 
-- Registro simple, **sin registrar cada apuesta**: usuario comunica cuánto retiró y cuánto recargó asociado.
-- Registrar retiro como entrada de dinero y, cuando se conozca la recarga, calcular **ganancia neta estimada** = retiro − recarga vinculada, sujeto a que no existan recargas/retiros omitidos.
-- Si la recarga ya estaba registrada, vincularla en vez de repetir gasto. Evitar que mover fondos de una plataforma a cuenta propia se cuente dos veces como ingreso.
-- No proponer estrategias de apuesta ni estimular más apuestas.
+Persistir solo preferencias y correcciones explícitas del operador que sean
+necesarias, con trazabilidad y alcance por agente/instancia. No hay fine-tuning
+privado ni aprendizaje implícito que amplíe permisos. Personalidad cercana,
+humor opcional y sin moralizar; aclarar si algo está estimado, pendiente o no
+implementado. Ante conflicto entre salida del agente y política, bloquear o preguntar.
 
-## 11. Divisas y tasas de cambio
+## ORC-11 — Autogestión y portabilidad
 
-- Moneda principal por instancia elegible durante onboarding; **COP por defecto**. Otras divisas ISO 4217 según soporte del proveedor de tasas.
-- Para movimiento en moneda extranjera: conservar monto y moneda original, fecha, tasa histórica consultada para ese día, fuente, fecha efectiva de la tasa y valor estimado convertido a moneda base.
-- Tasas pueden ser históricas/oficiales de referencia y **no necesariamente coinciden con cargo bancario**. Si el usuario comunica el valor real cobrado, este prevalece en estadísticas y se guarda referencia al estimado original.
-- No recalcular historiales por cambios diarios de tasa; distinguir cotización histórica no disponible y preguntar/usar tasa conocida explicitando su naturaleza.
-- Elegir reglas de redondeo por moneda y fuente; usar precisión decimal exacta.
+El proyecto busca distribución open source y BYOK: documentación sin credenciales
+del mantenedor, recursos por instalación y dependencias intercambiables. La
+licencia definitiva sigue pendiente; no afirmar que ya hay derechos concedidos
+para publicar o comercializar el código. Docker Compose y proveedores externos
+son decisiones de despliegue, no dependencias del protocolo ni de los dominios.
 
-## 12. Proveedores de IA, privacidad y presupuesto
+## ORC-12 — Entregas y alcance actual
 
-- **No Ollama/modelos locales** en alcance inicial. Varias APIs configurables (ej.: OpenRouter, Gemini, Groq y OpenAI), sujetas a verificación actual de compatibilidad y términos.
-- Ordenar modelos permitidos por calidad/capacidad por tipo de tarea (texto, imagen, herramientas); usar primero opciones gratuitas **elegibles por privacidad**. Al alcanzar cupos/fallar, fallback al siguiente elegible.
-- La privacidad es criterio eliminatorio: sin entrenamiento con datos financieros ni retención incompatible según **contratos efectivos del proveedor y del modelo/ruta**, no asumir que el agregador lo garantiza para todos. Limitar payload y enmascarar identificadores cuando sea posible.
-- Si las opciones gratuitas seguras se agotan, pasar a pago **solo si el usuario lo habilitó** y hay presupuesto mensual restante. Implementar límite local y preferir también topes duros ofrecidos por proveedor; no garantizar que estimación local evita todo cargo por carreras/latencia.
-- Si no existe proveedor apto o presupuesto, fallar con mensaje claro, sin recurrir a proveedor inseguro ni hacer compras automáticas.
-- Operaciones financieras deterministas en backend; el LLM interpreta intención pero no modifica SQL directamente. Persistir auditoría sin datos sensibles innecesarios.
-
-## 13. Reglas de notificación y preferencias
-
-- Permitidos por defecto: un mensaje al inicio de mes para revisar presupuestos; alertas presupuesto al 80 % y 100 % una vez por periodo/categoría; revisión de comprobantes semestral.
-- **No** recordatorios automáticos de deudas, facturas o salarios atrasados.
-- Respuestas de registros breves. Humor ligero configurable; sin moralizar, alarmismo ni presión.
-
-## 14. Fuera de alcance inicial y pendientes de decisión
-
-- No importación de gastos históricos desde Excel en MVP; solo saldo inicial y detalles relevantes.
-- No sincronización bancaria, transferencias reales, pagos, apuestas automáticas ni acceso a cuentas de terceros.
-- No aplicación nativa inmediata; no WhatsApp como interfaz inicial.
-- No autoentrenamiento ni fine-tuning con datos privados.
-- No prometer OCR perfecto, saldos bancarios exactos o actualización automática de estados sin confirmación.
-- PENDIENTE: licencia definitiva, alojamiento elegido, modelos y proveedores concretos, coste real por función, retención de datos en proveedor, implementación de voz, arquitectura de autenticación cuando haya varios usuarios por instancia.
+Conservar el Telegram existente. Distinguir implementado, simulado, reportado por
+el operador, diseñado, pendiente y no verificado. No construir microservicios
+internos, colas distribuidas, servidores MCP, web o nuevos repositorios en esta
+fase. El servicio Jarvis sigue siendo modular y ligero. Los tipos del protocolo
+no validan JSON ni aplican controles en ejecución; Registry/Gateway, eventos
+durables y políticas de gasto funcionales se implementarán en fases posteriores.

@@ -3,7 +3,8 @@
 Jarvis recibe texto y responde `/start`, `/status` o una explicación breve de que
 la función solicitada sigue pendiente. No interpreta pagos, no guarda operaciones,
 no usa IA y no envía recordatorios. Las pruebas automáticas simulan Telegram;
-la comprobación con un bot real es un paso manual del operador.
+el operador reportó aceptación con Telegram real exitosa el 2026-11-02.
+Esta fase conserva el comportamiento; no repite pruebas con sus credenciales.
 
 ## Crear el bot y preparar el acceso
 
@@ -128,8 +129,9 @@ respuesta fallida. No guarda el contenido del mensaje.
 
 La memoria y el offset no persisten: tras reiniciar, una actualización todavía no
 confirmada en Telegram puede reaparecer. No hay garantía de entrega exactamente
-una vez ni de idempotencia financiera. La futura fase financiera requerirá claves
-únicas y transacciones en DB antes de registrar dinero.
+una vez ni de idempotencia financiera. El futuro Finance Agent independiente
+requerirá claves únicas y transacciones propias antes de registrar dinero; Jarvis
+no incorporará su libro financiero.
 
 `TelegramApi`, el handler de actualizaciones y el núcleo determinista permiten
 cambiar el transporte después. No existe servidor webhook todavía; antes de
@@ -139,7 +141,7 @@ Prueba manual sugerida: dos mensajes conocidos desde el propietario, texto y
 comando desconocidos, otra cuenta fuera de la allowlist sin respuesta, cancelación
 y reinicio. No fuerces límites reales: 429, duplicados y errores ya se simulan.
 
-Se aplican [PRODUCT_RULES.md](PRODUCT_RULES.md) §1 (canal y credenciales propias),
-§12 (IA apagada y sin compras automáticas), §13 (respuestas breves, sin avisos
-proactivos) y §14 (finanzas y servicios externos posteriores). Las reglas
-financieras de §2/§4 permanecen pendientes, sin modificaciones.
+Se aplican [PRODUCT_RULES.md](PRODUCT_RULES.md) ORC-02/03/04/09/12: autorización,
+credenciales propias, IA apagada, sin avisos nuevos ni compras automáticas y
+separación del diseño futuro. Las reglas financieras se conservan en
+[Finance Agent](agents/FINANCE_AGENT_SPEC.md), no en el núcleo.

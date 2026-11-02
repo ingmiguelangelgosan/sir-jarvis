@@ -1,5 +1,9 @@
 # Primer prompt para pegar en Codex (VS Code)
 
+> Prompt histórico de Fase 0. No usarlo para reanudar el antiguo dominio financiero
+> dentro de Jarvis. Para continuar el orquestador, consultar
+> [el prompt de Fase 1B](prompts/PHASE_1B_PROMPT.md) y el [roadmap vigente](ROADMAP.md).
+
 > Copia el texto de abajo en una nueva conversación de Codex, con la carpeta raíz abierta.
 
 ---

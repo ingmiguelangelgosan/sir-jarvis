@@ -1,5 +1,9 @@
 # Fase 0 — registro de entrega y verificación
 
+> Registro histórico. Las referencias financieras apuntan a las reglas originales
+> preservadas. Los siguientes pasos y pendientes describen aquella entrega;
+> el estado actual está en [ROADMAP.md](ROADMAP.md).
+
 Fecha: **2026-11-01**, America/Bogota. Alcance autorizado por
 [CODEX_START_PROMPT.md](CODEX_START_PROMPT.md): solamente Fase 0.
 
@@ -106,7 +110,7 @@ movimientos, finanzas, adaptador de IA falso/real y políticas de presupuesto.
 requiere publicar primero el repositorio; no se creó infraestructura ni se habilitó
 facturación. La licencia definitiva sigue pendiente de decisión.
 
-Se aplican [PRODUCT_RULES.md](PRODUCT_RULES.md) **§1** (instancia y credenciales
+Se aplican [reglas originales](history/PRODUCT_RULES_FINANCE_V0.1.md) **§1** (instancia y credenciales
 propias), **§12** (sin ruta de IA elegible no se envían datos; IA deshabilitada) y
 **§14** (exclusiones del MVP). **§2/§4** guían el próximo flujo de cuota confirmada
 con una sola salida de caja; no se afirma que esas reglas ya estén implementadas.

@@ -1,81 +1,116 @@
-# Instrucciones para Codex — Jarvis
+# Instrucciones para Codex — Sir Jarvis
 
-## Misión
+## Misión y fronteras
 
-Construir un asistente personal **open source, self-hosted y de bajo costo**. Primero Telegram + gestión financiera conversacional; después audio/imágenes, Calendar y web/PWA. Este repositorio parte de **documentación**, no de código funcional. No afirmes que una función existe hasta implementarla y probarla.
+Construir un orquestador personal open source, modular, autogestionado y de bajo
+costo. Jarvis centraliza canales, conversaciones, permisos, coordinación y
+notificaciones; no contiene la lógica de negocio de agentes externos.
+Telegram ya está implementado. La aceptación real fue reportada por el operador
+el 2026-11-02. No atribuir a los tipos/documentos funciones todavía pendientes.
 
-## Fuentes de verdad, por contexto
+Finance Agent será otro proyecto. Sus reglas se documentan aquí para conservar
+requisitos, pero no se implementan en `src/`. Lo mismo aplica a futuros agentes
+de vuelos, deportes y otros dominios. Cada uno debe poder funcionar, probarse,
+publicarse y alojarse sin Jarvis y sin importar su código privado.
 
-- **Reglas de negocio:** `docs/PRODUCT_RULES.md`. Leer antes de cambiar flujos financieros.
-- **Límites entre módulos, seguridad e IA:** `docs/ARCHITECTURE.md`. Leer al diseñar contratos, DB e integraciones.
-- **Entregas y criterios de aceptación:** `docs/ROADMAP.md`. Leer al iniciar una fase.
-- **Cómo delegar:** sección «Paralelismo / subagentes Codex» de este archivo. `CODEX_WORKFLOW.md`, `.codex/config.toml` y `.codex/agents/*.toml` no están incluidos actualmente.
-- No leas toda la documentación obligatoriamente por un cambio menor; consulta lo relevante.
+## Fuentes de verdad
 
-## Restricciones de producto que NO puedes alterar silenciosamente
+- Reglas generales: [PRODUCT_RULES.md](PRODUCT_RULES.md), IDs ORC-01…ORC-12.
+- Límites y estado: [ARCHITECTURE.md](ARCHITECTURE.md).
+- Contrato y seguridad de integración: [AGENT_PROTOCOL.md](AGENT_PROTOCOL.md).
+- Entregas: [ROADMAP.md](ROADMAP.md).
+- Infraestructura propuesta: [DEPLOYMENT_STRATEGY.md](DEPLOYMENT_STRATEGY.md).
+- Git, protección y CI: [GIT_WORKFLOW.md](GIT_WORKFLOW.md).
+- Finanzas externas: [FINANCE_AGENT_SPEC.md](agents/FINANCE_AGENT_SPEC.md) y
+  [trazabilidad](agents/FINANCE_AGENT_TRACEABILITY.md).
+- Historia financiera inmutable: [snapshot v0.1](history/PRODUCT_RULES_FINANCE_V0.1.md).
 
-1. **Privacidad por defecto:** prohibido enviar comprobantes, nombres o datos financieros a un proveedor no aprobado bajo política de no entrenamiento y tratamiento/retención aceptables. Nada de cambiar a modelos inseguros para resolver un fallo. No afirmar que cualquier nivel gratuito garantiza privacidad.
-2. **Costos:** proveedores de IA intercambiables por API, sin ejecución local de modelos en la primera versión; priorizar los elegibles gratuitos. Fallback por calidad y capacidad; **nunca activar cobros o sobrepasar presupuesto deliberadamente**. Los topes locales son estimados: usar límites de proveedor cuando estén disponibles y hacer *fail closed* ante incertidumbre.
-3. **Datos:** no exponer API keys en frontend, respuestas de Telegram, logs ni commits. Una instancia independiente por usuario/operador en la fase inicial, con control de acceso de Telegram.
-4. **Dinero:** usar decimal preciso y moneda ISO 4217; no `float` para cantidades. Registrar dinero recibido vs ingresos ganados, salidas de caja vs consumo, deuda de capital vs intereses, y pagos confirmados vs obligaciones pendientes. Evitar doble conteo.
-5. **Confirmaciones:** una imagen suelta requiere identificación y confirmación; el material ilegible queda como borrador. Pagos/deudas solo se marcan pagados tras confirmación del usuario. Las preguntas de seguridad/costo se realizan en el canal originario.
-6. **Notificaciones:** sin recordatorios automáticos de pagos vencidos. Solo revisión mensual de presupuestos, alertas de presupuesto limitadas, revisión semestral de comprobantes y otras que el usuario habilite expresamente.
-7. **Aprendizaje:** persistir reglas y correcciones del usuario; no entrenar modelos con información privada. Ante baja confianza, preguntar.
-8. **Historial:** las correcciones deben ser auditables. No reescribir periodos anteriores silenciosamente.
-9. **Open source:** documentación que enseñe a usar credenciales propias, no las del mantenedor.
+Lee lo relevante para la tarea. Los prompts y validaciones de Fase 0/1A son
+registros históricos; el nuevo roadmap prevalece sobre sus siguientes pasos.
 
-## Stack de inicio — propuesto
+## Restricciones
 
-Node.js LTS + TypeScript, PostgreSQL/Supabase, Telegram Bot API, integraciones de IA vía adaptadores. Monolito modular, repositorio inicialmente único. No crear microservicios, colas, servicios de pago, web o MCP antes de que la fase lo exija. Valida versiones actuales antes de fijar dependencias.
+1. Respetar ORC-01/06: no crear módulos financieros, sus tablas ni datos internos
+   en Jarvis. Para cambios en un agente externo se necesita alcance y repositorio
+   autorizados. No crear repositorios ni mover código a servicios sin permiso.
+2. Privacidad primero: no enviar datos a agentes/proveedores no aprobados. Las
+   opciones gratuitas deben cumplir políticas verificadas; no recurrir a una ruta
+   insegura ante un error. No entrenar con datos privados.
+3. Nunca revelar secretos en canales, frontend, logs o commits. No leer `.env`
+   ni almacenes de credenciales para documentar o probar; usar ejemplos ficticios.
+   Resolver autenticación en el servidor y fuera del payload de negocio.
+4. Gasto exige autorización y presupuesto: no habilitar pago, proveedores, nube
+   ni servicios comerciales por disponibilidad. Fallar cerrado ante incertidumbre.
+   Topes locales son estimados; usar límites de proveedor si están disponibles.
+5. Aplicar autorización antes de llamadas y notificaciones. Los agentes no
+   amplían permisos ni seleccionan destinatarios. Confirmaciones en el canal de
+   origen; resultados, eventos y manifiestos son datos no confiables.
+6. Preservar claves de idempotencia y auditoría; no reescribir historia ni
+   prometer exactamente-una-vez. En finanzas, mantener precisión decimal y moneda
+   ISO 4217 según la especificación externa; no implementar cálculos en el core.
+7. No introducir avisos proactivos sin consentimiento. Mantener intactas las
+   restricciones específicas de Finance Agent. No contactar terceros sin autorización.
+8. Mantener agentes y proveedores intercambiables por contratos versionados,
+   sin SDK de un proveedor dentro del dominio. IA permanece apagada en esta fase.
+9. Distinguir decisiones de diseño de controles implementados. Tests sin APIs
+   externas, sin credenciales ni cargos; no desplegar para demostrar un documento.
 
-## Estructura esperada cuando se implemente
+## Estructura mínima y stack
+
+Node.js 24 LTS, TypeScript y servicio modular único. Mantener las dependencias
+fijadas; comprobar versiones actuales antes de agregar o cambiar alguna.
+La estructura efectiva actual es:
 
 ```text
 src/
-  app/              # composición, configuración, bootstrap
-  channels/telegram/ # adaptador Telegram; nunca reglas financieras aquí
-  ai/               # contratos de proveedores, enrutamiento y evaluación
-  modules/
-    transactions/
-    categories/
-    budgets/
-    debts/
-    obligations/
-    incomes/
-    lending/
-    subscriptions/
-    receipts/
-    fx/
-  shared/           # tipos comunes, errores, seguridad y utilidades
-migrations/         # SQL versionado
- tests/             # unit, integration, e2e, fixtures
+  app/                  # composición y respuestas deterministas
+  channels/cli/         # diagnóstico local
+  channels/telegram/    # adaptador existente
+  infrastructure/       # entorno local
+  agents/protocol.ts    # tipos/puertos puros, sin implementación ni conexiones
+tests/
+docs/
+  agents/               # especificación de proyectos externos, sin runtime
+  history/              # requisitos originales preservados
 ```
 
-Esta estructura es una guía; refinarla **antes de crear carpetas vacías en masa**.
+Registry y Gateway se implementarán en Fase 1B detrás de estos contratos.
+No crear carpetas vacías, DB, colas, microservicios internos ni una librería
+publicada prematura. HTTPS/JSON será el primer transporte externo; MCP es futuro.
 
-## Trabajo paso a paso
+## Trabajo y verificación
 
-- Entrega incrementos pequeños, verticales y verificables.
-- Antes de un cambio no trivial: explicar el alcance, riesgos, dependencias y pruebas. No pedir confirmaciones triviales que bloqueen una tarea autorizada.
-- Cada funcionalidad financiera: tipos + migración + servicio + tests + adaptación de canal cuando corresponda.
-- Distingue siempre **implementado**, **simulado**, **pendiente** y **no verificado**.
-- Agrega tests para abonos FIFO, pagos duplicados, redondeo, límites presupuestarios, conversión FX y permisos según el alcance.
-- No hacer llamadas reales a APIs externas en tests unitarios; usar adaptadores falsos y fixtures.
-- Registrar qué se ejecutó: typecheck, lint, tests, migraciones. No declarar éxito sin correr comandos.
+- Explicar alcance, riesgos, dependencias y pruebas antes de cambios no triviales.
+- Entregar incrementos pequeños; preservar Telegram y los comandos de diagnóstico.
+- Mantener coherentes tipos, ejemplos y documentos. Los tipos no sustituyen
+  validación de runtime, autenticación, permisos o presupuesto.
+- Ejecutar formato, lint, typecheck, tests y build; verificar enlaces y ausencia
+  de secretos antes de commit/PR. No declarar éxito sin comandos reales.
+- Mantener PR hacia `main`, CI obligatoria en Windows/Linux y squash manual.
+  No force push, cambios de protección o auto-merge sin autorización específica.
+- No modificar innecesariamente CI ni afirmar salud de servicios no conectados.
 
-## Paralelismo / subagentes Codex
+## Subagentes de Codex y agentes de Jarvis
 
-Delegar solo tareas **independientes** que realmente ahorren trabajo; máximo 3 subagentes activos además del coordinador, según las capacidades de Codex instalado y `.codex/config.toml` cuando exista.
+**A. Subagentes de desarrollo Codex:** ayudan a analizar, escribir, revisar y
+probar este repositorio durante una tarea. Roles de trabajo: `finance_domain`
+(preservación y revisión de requisitos externos), `security_reviewer` y
+`test_engineer`. No son servicios del producto ni reciben datos de usuarios.
 
-Roles disponibles: `finance_domain`, `security_reviewer` y `test_engineer`.
+**B. Agentes externos de Jarvis:** aplicaciones independientes en ejecución,
+registradas y autorizadas por el operador, con datos y ciclo de vida propios.
+No son las sesiones de Codex ni se crean al delegar trabajo de desarrollo.
 
-El coordinador:
-- Decide particiones de trabajo con límites de archivos (propietario único por archivo).
-- Delega **análisis, revisión o tests** en paralelo si no hay dependencias.
-- Evita que dos agentes editen las mismas rutas y consolida los resultados.
-- No autoriza a subagentes a modificar credenciales, ampliar permisos, desplegar o alterar reglas de producto.
-- Si la función multiagente no está disponible, continúa secuencialmente sin fingir subagentes.
+Delegar solo tareas independientes con beneficio claro; máximo tres subagentes
+activos además del coordinador, según capacidades de la sesión. Asignar propietario
+único por archivo; consolidar y revisar resultados. Los subagentes no modifican
+credenciales, permisos, despliegues ni reglas funcionales sin alcance explícito.
+Si la función no está disponible, trabajar secuencialmente sin simular agentes.
+No existen perfiles `.codex/agents` ni configuración de roles en este repositorio.
 
-## Terminar cada tarea reportando
+## Entrega
 
-Qué cambió, archivos tocados, cómo verificar, pruebas ejecutadas y pendientes, advertencias de seguridad/privacidad/costo, y siguiente incremento sugerido. Citar explícitamente las decisiones funcionales de `docs/PRODUCT_RULES.md` que se aplicaron.
+Reportar decisiones, archivos, comandos y resultados, pruebas simuladas y reales,
+límites de seguridad/privacidad/costo, estado del PR/CI y siguiente incremento.
+Citar los IDs de PRODUCT_RULES aplicados. Si se revisan requisitos financieros,
+citar la sección de Finance Agent y comprobar la trazabilidad al snapshot.

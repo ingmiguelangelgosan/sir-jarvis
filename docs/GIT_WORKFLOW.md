@@ -54,5 +54,7 @@ Git local por proyecto. Revisa siempre los archivos staged: `.env`, keys, logs,
 comprobantes, backups, dependencias y compilación deben quedar fuera. Solo se
 publica `.env.example`, sin secretos. El repositorio es público.
 
-Las reglas financieras de [PRODUCT_RULES.md](PRODUCT_RULES.md) se mantienen;
-este flujo no habilita integraciones, proveedores de IA ni facturación.
+Las reglas generales de [PRODUCT_RULES.md](PRODUCT_RULES.md) y las financieras
+preservadas en [Finance Agent](agents/FINANCE_AGENT_SPEC.md) se mantienen;
+este flujo no habilita integraciones, proveedores de IA ni facturación. La
+separación arquitectónica se realiza por PR, sin crear repositorios de agentes.
