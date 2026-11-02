@@ -1,6 +1,6 @@
 # Jarvis — arquitectura propuesta del MVP
 
-**Estado:** diseño propuesto, no implementación. Evolucionar mediante ADRs cuando se prueben alternativas. No comenzar con microservicios.
+**Estado:** diseño objetivo del MVP. Fase 0 y transporte Telegram de Fase 1A implementados; dominio financiero, DB e IA pendientes. La verificación con Telegram real sigue pendiente de credenciales propias. Evolucionar mediante ADRs cuando se prueben alternativas. No comenzar con microservicios.
 
 ## 1. Objetivos de arquitectura
 
@@ -37,6 +37,8 @@
 - **Infrastructure**: PostgreSQL, migrations, Telegram client, storage privado, scheduler para presupuestos/revisión semestral.
 
 ## 3. Contratos principales (conceptuales)
+
+El corte 1A concreta un núcleo determinista (`src/app/assistant.ts`), composición explícita (`src/app/telegram-main.ts`), contrato `TelegramApi` y handler independiente del polling en `src/channels/telegram/`. El cliente HTTP usa `fetch` nativo con errores sanitizados y el handler autoriza antes de invocar el núcleo. Las credenciales Telegram se validan por separado y no entran al diagnóstico local. No hay nuevos SDKs, DB ni reglas financieras. El polling es secuencial; la deduplicación es temporal y no sirve como idempotencia financiera. Detalles y límites en [TELEGRAM.md](TELEGRAM.md).
 
 - `ChannelAdapter.receive(message) -> InboundMessage` (`channel`, `externalMessageId`, `senderId`, `timestamp`, `text`, `attachments`).
 - `IntentInterpreter.interpret(context) -> ProposedAction` (acción + datos + `confidence`, sin efectos persistentes).

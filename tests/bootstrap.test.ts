@@ -70,11 +70,11 @@ test('CLI real responde sin credenciales y no expone variables privadas', (conte
   assert.equal(result.stderr, '');
   assert.deepEqual(JSON.parse(result.stdout), {
     application: 'jarvis',
-    phase: 0,
+    phase: '1A',
     status: 'bootstrap-ready',
     checks: { configuration: 'valid' },
     capabilities: {
-      telegram: 'not-implemented',
+      telegram: 'available-not-connected',
       persistence: 'not-implemented',
       finance: 'not-implemented',
       ai: 'disabled',
