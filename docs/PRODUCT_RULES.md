@@ -129,5 +129,7 @@ Conservar el Telegram existente. Distinguir implementado, simulado, reportado po
 el operador, diseñado, pendiente y no verificado. No construir microservicios
 internos, colas distribuidas, servidores MCP, web o nuevos repositorios en esta
 fase. El servicio Jarvis sigue siendo modular y ligero. Los tipos del protocolo
-no validan JSON ni aplican controles en ejecución; Registry/Gateway, eventos
-durables y políticas de gasto funcionales se implementarán en fases posteriores.
+no validan JSON por sí solos; Fase 1B añade validación, autorización y Registry/Gateway
+en memoria con transporte falso. No se presentan como conexión a agentes reales,
+persistencia de idempotencia o controles de presupuesto de producción. Eventos
+durables, HTTP y consumo real siguen pendientes de fases posteriores.

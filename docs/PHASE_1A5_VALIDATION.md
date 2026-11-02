@@ -1,5 +1,8 @@
 # Fase 1A.5 — decisiones y verificación
 
+> Registro histórico del PR #3, fusionado. Los estados y siguientes pasos de esta
+> entrega se actualizan en [ROADMAP](ROADMAP.md) y [validación de Fase 1B](PHASE_1B_VALIDATION.md).
+
 Fecha de decisión: **2026-11-02**, America/Bogota. Rama:
 `refactor/agent-orchestrator-architecture`. Esta entrega redefine fronteras y
 contratos; no implementa Registry/Gateway funcionales ni agentes externos.

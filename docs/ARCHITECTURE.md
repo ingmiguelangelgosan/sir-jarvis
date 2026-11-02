@@ -13,7 +13,7 @@ o repositorio en esta fase.
 | Bootstrap, configuración y diagnóstico      | Implementados y probados                                              |
 | Channel Layer: Telegram texto               | Implementada; aceptación real reportada por el operador el 2026-11-02 |
 | Core: respuestas /start, /status y fallback | Implementado, determinista y sin enrutamiento externo                 |
-| Agent Registry / Agent Gateway              | Diseño e interfaces TypeScript; sin implementación                    |
+| Agent Registry / Agent Gateway              | Fase 1B: memoria, validación y transporte falso; sin HTTP             |
 | Event Dispatcher                            | Diseño; sin endpoint externo ni inbox durable                         |
 | AI Gateway                                  | Diseñado; proveedores deshabilitados                                  |
 | Persistence Layer                           | Diseñada; sin nueva DB                                                |
@@ -22,6 +22,8 @@ o repositorio en esta fase.
 El comportamiento y las respuestas actuales de Telegram se conservan, incluso
 su texto de Fase 1A. El diagnóstico sigue describiendo el último corte funcional
 y no afirma que el orquestador ya pueda invocar agentes.
+El caso de uso programático `AgentExecutionService` y `agents:demo` demuestran
+autorización y ejecución simulada por separado. No se conecta esta API al bot.
 
 ## Diagrama objetivo
 
@@ -112,8 +114,13 @@ técnica de Fase 1A.5 es [src/agents/protocol.ts](../src/agents/protocol.ts):
 tipos de manifiestos, configuración local, solicitudes/resultados/eventos y puertos
 Registry/Gateway, sin importarlos al bot. No validan JSON no confiable.
 
-Fase 1B podrá añadir implementaciones pequeñas de Registry en memoria y Gateway
-con transporte falso detrás de esos puertos, sin red ni servicios de dominio.
+Fase 1B añade Registry inmutable, catálogo de schemas locales, Gateway con puerto
+de transporte falso y un caso de uso que recibe el actor autenticado separado del
+payload. Valida entradas/salidas y permisos antes de efectos, coalesce solicitudes
+concurrentes por clave, limita esperas/reintentos y conserva resultados inciertos.
+Cachea outputs solo con retención explícita; mantiene metadatos hasta cerrar el
+proceso y falla cerrado al agotar capacidad. No hay DB ni servicios de dominio.
+[Detalle operativo y límites](AGENT_RUNTIME.md).
 Una interfaz no exige un directorio por componente; crear archivos cuando tengan
 uso verificable. No introducir nuevos paquetes, base de datos, ORM, scheduler,
 servidor webhook, cola o microservicios internos por anticipación.

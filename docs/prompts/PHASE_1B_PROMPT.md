@@ -1,5 +1,8 @@
 # Prompt recomendado — Fase 1B
 
+> Alcance de la entrega Fase 1B. Consulta su [validación](../PHASE_1B_VALIDATION.md)
+> y el [roadmap vigente](../ROADMAP.md) antes de repetir la implementación.
+
 Continúa Sir Jarvis desde `main` actualizado **solo después de verificar que el
 PR de Fase 1A.5 esté fusionado**. Si no está, informa esa condición y detén la
 implementación. Lee AGENTS.md, docs/AGENTS.md, PRODUCT_RULES, ARCHITECTURE,

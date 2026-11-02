@@ -15,6 +15,7 @@
     "diagnose": "node src/app/main.ts diagnose",
     "telegram": "node src/app/telegram-main.ts",
     "telegram:start": "node dist/app/telegram-main.js",
+    "agents:demo": "node src/app/agent-demo.ts",
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/app/main.js",
     "typecheck": "tsc --noEmit",
