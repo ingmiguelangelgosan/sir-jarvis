@@ -13,6 +13,8 @@
   "scripts": {
     "dev": "node src/app/main.ts",
     "diagnose": "node src/app/main.ts diagnose",
+    "telegram": "node src/app/telegram-main.ts",
+    "telegram:start": "node dist/app/telegram-main.js",
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/app/main.js",
     "typecheck": "tsc --noEmit",

@@ -14,6 +14,12 @@
 
 ## Fase 1 — primer flujo de finanzas por Telegram (MVP mínimo)
 
+### Corte 1A — transporte Telegram
+
+Implementado en `feat/telegram-integration`: texto por long polling, allowlist de IDs y chats privados, `/start`, `/status`, respuesta a funciones pendientes, errores sanitizados, límites y deduplicación en memoria. IA deshabilitada. Pruebas con API simulada; prueba manual con bot propio pendiente. Guía: [TELEGRAM.md](TELEGRAM.md). Verificación: [PHASE_1A_VALIDATION.md](PHASE_1A_VALIDATION.md).
+
+El resto de Fase 1 sigue pendiente: todavía no se registra dinero ni hay DB, deuda, interpretación IA o idempotencia persistente. Este corte no cumple aún el caso de aceptación financiero de abajo.
+
 - Restricción de un propietario Telegram, entrada de texto y confirmación breve.
 - PostgreSQL con migraciones e idempotencia.
 - Crear deuda inicial de iPhone (datos ficticios en tests), registrar pago de cuota, asignación a deuda y reporte de caja mensual.
