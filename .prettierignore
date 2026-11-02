@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.npm-cache/
+.tools/
+package-lock.json
+.env
+.env.*
+!.env.example
+
+# Especificaciones originales: preservar su formato.
+docs/AGENTS.md
+docs/ARCHITECTURE.md
+docs/PRODUCT_RULES.md
+docs/ROADMAP.md
+docs/CODEX_START_PROMPT.md

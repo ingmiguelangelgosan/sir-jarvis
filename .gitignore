@@ -1,0 +1,27 @@
+# Dependencias, compilación y herramientas locales
+node_modules/
+dist/
+coverage/
+.npm-cache/
+.tools/
+*.tsbuildinfo
+
+# Credenciales y archivos privados; solo se versiona el ejemplo
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.log
+logs/
+backups/
+receipts/
+*.sql.dump
+
+# Archivos del sistema/editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
