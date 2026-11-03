@@ -105,7 +105,11 @@ funcionar antes del polling. Clave HMAC,
 instancia, bindings y bot se vinculan por fingerprint; cambios requieren migración
 administrada en vez de borrar la DB para ocultar el conflicto.
 
-Backups coherentes, restauración y Docker Compose local son el siguiente corte,
-Fase 1E.2. No copiar solo el archivo principal mientras WAL pueda contener commits
-no checkpointados. No se implementan ni se certifican backups en este ADR.
+Fase 1E.2 añade [Compose local](../LOCAL_DEPLOYMENT.md) y
+[backup/restauración](../BACKUP_RESTORE.md), con
+[evidencia separada](../PHASE_1E2_VALIDATION.md). No copiar solo el archivo
+principal mientras WAL pueda contener commits no checkpointados. La restauración
+crea un destino nuevo con bloqueo en DB hasta conciliación y autorización;
+integridad SQLite no demuestra que estén todas las operaciones externas. Este
+ADR conserva la decisión original de persistencia, no certifica RPO/RTO de AWS.
 Aplican [PRODUCT_RULES](../PRODUCT_RULES.md) ORC-02/03/05/06/07/08/11/12.

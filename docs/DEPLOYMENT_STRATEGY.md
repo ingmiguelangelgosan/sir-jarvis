@@ -62,7 +62,7 @@ repositorio, pruebas, datos, permisos y ciclo de vida propios, aunque comparta h
 No dividir Registry/Gateway/Core en microservicios. No compartir bases de dominio,
 volúmenes o credenciales entre proyectos ni añadir SDK AWS al Core.
 
-El diseño futuro usa imágenes fijadas, usuario sin privilegios, límites de CPU/RAM,
+La preparación local de Fase 1E.2 usa imágenes fijadas, usuario sin privilegios, límites de CPU/RAM,
 volúmenes separados y redes por integración. No montar el socket Docker ni
 directorios completos del host. Telegram mantiene long polling saliente, sin
 puerto público de bot. No abrir DB, Dispatcher o webhooks de agentes en esta fase.
@@ -74,7 +74,10 @@ su opción predeterminada admite solo destinos públicos validados. No se permit
 rangos privados generales, loopback, link-local o metadata en producción. Mantener
 TLS válido para el nombre original incluso en red privada. La excepción de
 loopback de tests no se hereda a producción. Probar esta composición en el host
-antes de contratar; no hay redes AWS o Compose desplegados.
+antes de contratar; no hay redes AWS desplegadas. La configuración Compose local,
+sus secretos, límites y comprobaciones se documentan en
+[LOCAL_DEPLOYMENT](LOCAL_DEPLOYMENT.md), con evidencia en
+[PHASE_1E2_VALIDATION](PHASE_1E2_VALIDATION.md).
 [Compose en producción](https://docs.docker.com/compose/how-tos/production/).
 
 ## Dimensionamiento medido
@@ -129,9 +132,11 @@ ajenos a AWS. [EC2](https://aws.amazon.com/ec2/pricing/),
 [Cloud Run](https://cloud.google.com/run/pricing) requieren revisar sus condiciones
 cuando se elijan. El long polling de Telegram no equivale a una petición bajo demanda.
 
-Backups cifrados, restauración medida, secretos por integración y exportación de
-configuración se detallan en el [plan AWS](AWS_DEPLOYMENT_PLAN.md). Ni backup ni
-reinicio convierten la deduplicación actual en persistencia durable: conciliar
-efectos inciertos antes de reanudar tráfico.
+Backups cifrados y recuperación local se detallan en
+[BACKUP_RESTORE](BACKUP_RESTORE.md); su adaptación al entorno objetivo sigue en el
+[plan AWS](AWS_DEPLOYMENT_PLAN.md). SQLite aporta estado durable local, no
+idempotencia de negocio ni detección completa de rollback. Toda restauración queda
+bloqueada hasta conciliar y autorizar tráfico. Las mediciones locales no acreditan
+capacidad suficiente para Lightsail de 2 GB ni RPO/RTO de una pérdida del host AWS.
 
 Esta decisión aplica [PRODUCT_RULES](PRODUCT_RULES.md) ORC-01/03/04/06/07/08/11/12.

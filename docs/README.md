@@ -116,6 +116,12 @@ si no existe. El entorno del proceso prevalece sobre el archivo local.
 | `JARVIS_AGENTS_CONFIG_FILE`      | Solo con integración activa; JSON privado administrado localmente                  |
 | `JARVIS_TELEGRAM_AGENT_KEY`      | Solo con integración activa; clave HMAC propia y estable, distinta de tokens       |
 | `JARVIS_STATE_FILE`              | Obligatoria al activar agentes en el bot normal; DB local previamente inicializada |
+| `JARVIS_RUNTIME_DIRECTORY`       | Directorio privado compartido para exclusión local de consumidores Telegram        |
+| `JARVIS_HEALTH_FILE`             | Heartbeat local optativo para health check; Compose usa `/tmp/jarvis-health`       |
+
+En Compose, token, allowlist, HMAC y Bearer Echo pueden leerse mediante sus cuatro
+variables `_FILE` admitidas. No combinar valor directo y archivo ni asumir que
+Compose cifra secretos. [Guía local y permisos](LOCAL_DEPLOYMENT.md#secretos-y-configuración-privada).
 
 ```sh
 npm run telegram
@@ -163,22 +169,28 @@ de dominio; el registro y los permisos siguen siendo configuración local.
 
 ## Herramientas y evidencia
 
-| Comando                                       | Resultado esperado                                            |
-| --------------------------------------------- | ------------------------------------------------------------- |
-| `npm run dev` / `npm run diagnose`            | Diagnóstico desde TS                                          |
-| `npm run build` / `npm start`                 | Compilar / ejecutar diagnóstico JS                            |
-| `npm run telegram` / `npm run telegram:start` | Bot TS / compilado con configuración propia                   |
-| `npm run agents:demo`                         | Demostración local con transporte falso y sin credenciales    |
-| `npm run agents:https:demo`                   | HTTPS real con proceso ficticio temporal, sin red pública     |
-| `npm run agents:telegram:demo`                | Recorrido completo con Telegram simulado y Echo HTTPS local   |
-| `npm run telegram:agents:demo`                | Prueba manual explícita con bot propio y Echo temporal        |
-| `npm run state:init -- <ruta>`                | Crear una DB nueva explícita, sin llamadas externas           |
-| `npm run state:compact -- <ruta>`             | Redactar detalles terminales elegibles conservando tombstones |
-| `npm run format` / `npm run format:check`     | Aplicar / comprobar formato                                   |
-| `npm run lint` / `npm run typecheck`          | Lint y tipos, incluidos contratos estáticos                   |
-| `npm test`                                    | Tests sin APIs reales ni claves                               |
-| `npm run check`                               | Formato, lint, tipos, tests y build                           |
-| `npm audit`                                   | Consulta de vulnerabilidades conocidas                        |
+| Comando                                         | Resultado esperado                                                            |
+| ----------------------------------------------- | ----------------------------------------------------------------------------- |
+| `npm run dev` / `npm run diagnose`              | Diagnóstico desde TS                                                          |
+| `npm run build` / `npm start`                   | Compilar / ejecutar diagnóstico JS                                            |
+| `npm run telegram` / `npm run telegram:start`   | Bot TS / compilado con configuración propia                                   |
+| `npm run agents:demo`                           | Demostración local con transporte falso y sin credenciales                    |
+| `npm run agents:https:demo`                     | HTTPS real con proceso ficticio temporal, sin red pública                     |
+| `npm run agents:telegram:demo`                  | Recorrido completo con Telegram simulado y Echo HTTPS local                   |
+| `npm run telegram:agents:demo`                  | Prueba manual explícita con bot propio y Echo temporal                        |
+| `npm run state:init -- <ruta>`                  | Crear una DB nueva explícita, sin llamadas externas                           |
+| `npm run state:compact -- <ruta>`               | Redactar detalles terminales elegibles conservando tombstones                 |
+| `npm run state:backup -- <db> <dir> <key>`      | Snapshot coherente cifrado, fuera del volumen activo                          |
+| `npm run state:verify -- <backup> <key>`        | Autenticar, descifrar y comprobar esquema/integridad                          |
+| `npm run state:restore -- <backup> <dir> <key>` | Restaurar exclusivamente en destino aislado y bloqueado                       |
+| `npm run state:inspect -- <db>`                 | Revisar estado de recuperación y conteos sin mensajes                         |
+| `npm run state:authorize -- …`                  | Autorizar una recuperación revisada, con reconocimiento explícito de rollback |
+| `npm run state:prune -- <dir> <key> <keep>`     | Retención explícita de copias válidas administradas                           |
+| `npm run format` / `npm run format:check`       | Aplicar / comprobar formato                                                   |
+| `npm run lint` / `npm run typecheck`            | Lint y tipos, incluidos contratos estáticos                                   |
+| `npm test`                                      | Tests sin APIs reales ni claves                                               |
+| `npm run check`                                 | Formato, lint, tipos, tests y build                                           |
+| `npm audit`                                     | Consulta de vulnerabilidades conocidas                                        |
 
 ESLint, TypeScript, Prettier y Zod conservan las versiones del lockfile. La caché
 local y `ignore-scripts` de [.npmrc](../.npmrc) permanecen. Snapshot y bloque
@@ -192,6 +204,9 @@ los tests verifican hash e inclusión íntegra.
 - [Verificación de Fase 1C](PHASE_1C_VALIDATION.md), HTTPS real local y pruebas.
 - [Verificación de Fase 1D](PHASE_1D_VALIDATION.md), integración conversacional opcional.
 - [Verificación de Fase 1E.1](PHASE_1E1_VALIDATION.md), estado durable y recuperación.
+- [Ejecución local con Compose](LOCAL_DEPLOYMENT.md), imágenes, red y secretos.
+- [Backups y restauración](BACKUP_RESTORE.md), cifrado, bloqueo y conciliación.
+- [Verificación de Fase 1E.2](PHASE_1E2_VALIDATION.md), evidencia local y límites.
 - [ADR SQLite WAL](adr/0001-durable-state-sqlite.md), elección, seguridad y límites.
 - [Plan AWS](AWS_DEPLOYMENT_PLAN.md), costos, créditos y preparación sin desplegar.
 - [Instrucciones Codex](AGENTS.md) y [flujo de Git](GIT_WORKFLOW.md).

@@ -58,6 +58,7 @@ export class DurableAgentGateway implements AgentGateway {
       {
         execute: async (request, signal) => {
           this.#ready(signal);
+          this.#storage(() => store.assertExternalEffectsAllowed?.());
           const key = digest(executionKey(request));
           this.#storage(() =>
             store.transitionExecution(
@@ -75,6 +76,7 @@ export class DurableAgentGateway implements AgentGateway {
         },
         getOperation: (query, signal) => {
           this.#ready(signal);
+          this.#storage(() => store.assertExternalEffectsAllowed?.());
           return transport.getOperation(query, signal);
         },
       },

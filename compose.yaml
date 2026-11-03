@@ -1,0 +1,224 @@
+name: sir-jarvis-local
+
+x-runtime: &runtime
+  image: sir-jarvis:local
+  build:
+    context: .
+    dockerfile: Dockerfile
+  user: '1000:1000'
+  init: true
+  read_only: true
+  security_opt: ['no-new-privileges:true']
+  cap_drop: ['ALL']
+  pids_limit: 64
+  cpus: 0.75
+  mem_limit: 384m
+  memswap_limit: 384m
+  tmpfs: ['/tmp:rw,noexec,nosuid,nodev,size=16m,mode=1777']
+  stop_grace_period: 40s
+  logging:
+    driver: json-file
+    options:
+      max-size: 1m
+      max-file: '2'
+
+services:
+  jarvis:
+    <<: *runtime
+    profiles: ['telegram']
+    restart: 'on-failure:3'
+    environment:
+      NODE_ENV: production
+      JARVIS_AI_MODE: disabled
+      JARVIS_TELEGRAM_AGENTS_ENABLED: '${JARVIS_TELEGRAM_AGENTS_ENABLED:-false}'
+      TELEGRAM_BOT_TOKEN_FILE: /run/secrets/telegram_token
+      TELEGRAM_ALLOWED_USER_IDS_FILE: /run/secrets/allowed_users
+      JARVIS_TELEGRAM_AGENT_KEY_FILE: /run/secrets/action_key
+      JARVIS_ECHO_BEARER_FILE: /run/secrets/echo_bearer
+      JARVIS_AGENTS_CONFIG_FILE: /run/secrets/agents_config
+      JARVIS_STATE_FILE: /data/state/jarvis.sqlite
+      JARVIS_RUNTIME_DIRECTORY: /data/runtime
+    secrets:
+      - telegram_token
+      - allowed_users
+      - action_key
+      - echo_bearer
+      - agents_config
+      - echo_ca
+    volumes:
+      - jarvis_state:/data
+    networks:
+      - agents_private
+      - telegram_egress
+
+  echo:
+    image: sir-jarvis-echo-demo:local
+    build:
+      context: ./deploy/echo
+    profiles: ['demo', 'test']
+    user: '1000:1000'
+    init: true
+    read_only: true
+    restart: 'on-failure:3'
+    security_opt: ['no-new-privileges:true']
+    cap_drop: ['ALL']
+    pids_limit: 32
+    cpus: 0.25
+    mem_limit: 128m
+    memswap_limit: 128m
+    tmpfs: ['/tmp:rw,noexec,nosuid,nodev,size=4m,mode=1777']
+    stop_grace_period: 10s
+    secrets:
+      - echo_bearer
+      - echo_key
+      - echo_certificate
+      - echo_ca
+    networks:
+      agents_private:
+        ipv4_address: 172.30.77.10
+    healthcheck:
+      test: ['CMD', 'node', '/echo/healthcheck.mjs']
+      interval: 10s
+      timeout: 3s
+      start_period: 5s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: 1m
+        max-file: '2'
+
+  smoke:
+    <<: *runtime
+    profiles: ['test']
+    restart: 'no'
+    command: ['node', '/smoke/smoke.mjs']
+    environment:
+      JARVIS_TELEGRAM_AGENTS_ENABLED: 'true'
+      TELEGRAM_ALLOWED_USER_IDS_FILE: /run/secrets/allowed_users
+      JARVIS_TELEGRAM_AGENT_KEY_FILE: /run/secrets/action_key
+      JARVIS_ECHO_BEARER_FILE: /run/secrets/echo_bearer
+      JARVIS_AGENTS_CONFIG_FILE: /run/secrets/agents_config
+      JARVIS_STATE_FILE: /data/state/smoke.sqlite
+      JARVIS_RUNTIME_DIRECTORY: /data/runtime
+    secrets:
+      - allowed_users
+      - action_key
+      - echo_bearer
+      - agents_config
+      - echo_ca
+    volumes:
+      - smoke_state:/data
+      - ./deploy/smoke.mjs:/smoke/smoke.mjs:ro
+    healthcheck:
+      disable: true
+    depends_on:
+      echo:
+        condition: service_healthy
+    networks:
+      - agents_private
+
+  maintenance:
+    <<: *runtime
+    mem_limit: 768m
+    memswap_limit: 768m
+    profiles: ['tools']
+    restart: 'no'
+    entrypoint: ['node', 'dist/app/backup-main.js']
+    command: ['inspect', '/data/state/jarvis.sqlite']
+    healthcheck:
+      disable: true
+    network_mode: none
+    secrets:
+      - backup_key
+    volumes:
+      - jarvis_state:/data
+      - jarvis_backups:/backups
+      - jarvis_recovery:/recovery
+
+  smoke-maintenance:
+    <<: *runtime
+    profiles: ['recovery-test']
+    restart: 'no'
+    mem_limit: 768m
+    memswap_limit: 768m
+    entrypoint: ['node', 'dist/app/backup-main.js']
+    command: ['inspect', '/data/state/smoke.sqlite']
+    healthcheck:
+      disable: true
+    network_mode: none
+    secrets:
+      - backup_key
+    volumes:
+      - smoke_state:/data
+      - jarvis_backups:/backups
+      - jarvis_recovery:/recovery
+
+  simulated-telegram:
+    <<: *runtime
+    profiles: ['recovery-test']
+    restart: 'no'
+    command:
+      - node
+      - --import
+      - /smoke/telegram-simulated.mjs
+      - dist/app/telegram-main.js
+    environment:
+      NODE_ENV: test
+      JARVIS_AI_MODE: disabled
+      JARVIS_TELEGRAM_AGENTS_ENABLED: 'true'
+      # Deliberately fictitious. The preloader intercepts every Telegram fetch.
+      TELEGRAM_BOT_TOKEN: '87654321:compose_fictitious_token_not_for_real_use'
+      TELEGRAM_ALLOWED_USER_IDS_FILE: /run/secrets/allowed_users
+      JARVIS_TELEGRAM_AGENT_KEY_FILE: /run/secrets/action_key
+      JARVIS_ECHO_BEARER_FILE: /run/secrets/echo_bearer
+      JARVIS_AGENTS_CONFIG_FILE: /run/secrets/agents_config
+      JARVIS_STATE_FILE: /data/state/smoke.sqlite
+      JARVIS_RUNTIME_DIRECTORY: /data/runtime
+    secrets:
+      - allowed_users
+      - action_key
+      - echo_bearer
+      - agents_config
+      - echo_ca
+    volumes:
+      - smoke_state:/data
+      - ./deploy/telegram-simulated.mjs:/smoke/telegram-simulated.mjs:ro
+    networks:
+      - agents_private
+
+networks:
+  agents_private:
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.30.77.0/24
+  telegram_egress: {}
+
+volumes:
+  jarvis_state: {}
+  smoke_state: {}
+  jarvis_backups: {}
+  jarvis_recovery: {}
+
+# Compose secrets are read-only mounts, NOT encryption. Keep this host directory
+# private and readable by UID 1000. Never commit these files or print compose env.
+secrets:
+  telegram_token:
+    file: '${JARVIS_PRIVATE_DIR:-./.local/compose}/secrets/telegram-token'
+  allowed_users:
+    file: '${JARVIS_PRIVATE_DIR:-./.local/compose}/secrets/allowed-users'
+  action_key:
+    file: '${JARVIS_PRIVATE_DIR:-./.local/compose}/secrets/hmac.key'
+  echo_bearer:
+    file: '${JARVIS_PRIVATE_DIR:-./.local/compose}/secrets/echo-bearer'
+  agents_config:
+    file: '${JARVIS_PRIVATE_DIR:-./.local/compose}/secrets/agents.json'
+  echo_key:
+    file: '${JARVIS_PRIVATE_DIR:-./.local/compose}/secrets/echo-server.key'
+  echo_certificate:
+    file: '${JARVIS_PRIVATE_DIR:-./.local/compose}/secrets/echo-server.crt'
+  echo_ca:
+    file: '${JARVIS_PRIVATE_DIR:-./.local/compose}/secrets/echo-ca.crt'
+  backup_key:
+    file: '${JARVIS_PRIVATE_DIR:-./.local/compose}/secrets/backup.key'
