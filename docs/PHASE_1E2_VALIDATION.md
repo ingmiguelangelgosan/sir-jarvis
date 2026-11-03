@@ -56,25 +56,24 @@ lockfile, las pruebas anteriores o los documentos financieros preservados.
 
 ## Publicación y revisión manual
 
-La rama `feat/local-compose-backup-recovery` está publicada. La creación mediante
-`gh pr create` fue rechazada por GitHub con `must be a collaborator
-(createPullRequest)`: la sesión de GitHub CLI reporta permiso `READ`. El push de
-Git sí funcionó mediante la autenticación configurada para ese transporte. No se
-extrajeron credenciales ni se intentó eludir la restricción de la API.
-
-El PR **no está creado**, por lo que no hay CI de evento `pull_request` que
-presentar como aprobada. Los checks anteriores corresponden al evento `push` de
-la rama. El propietario puede [abrir el PR hacia main](https://github.com/ingmiguelangelgosan/sir-jarvis/compare/main...feat/local-compose-backup-recovery?expand=1)
-y esperar nuevamente los checks Windows/Linux antes de revisar. La descripción
-completa está preparada localmente en `.tools/phase1e2-pr-body.md`:
+La rama `feat/local-compose-backup-recovery` está publicada y el
+[PR #8](https://github.com/ingmiguelangelgosan/sir-jarvis/pull/8) está abierto hacia
+`main`, sin merge ni auto-merge. El primer intento usó una cuenta de GitHub CLI
+con permiso `READ` y fue rechazado. A petición del operador se activó la sesión
+ya guardada de `ingmiguelangelgosan` mediante `gh auth switch`; se comprobó
+`viewerPermission: ADMIN` y se creó el PR. No fue necesario iniciar otro flujo
+en Chrome ni extraer credenciales. La descripción completa permanece en
+`.tools/phase1e2-pr-body.md`. Comandos ejecutados:
 
 ```sh
+gh auth switch --hostname github.com --user ingmiguelangelgosan
 gh pr create --repo ingmiguelangelgosan/sir-jarvis --base main --head feat/local-compose-backup-recovery --title 'feat: contenedores locales y recuperación segura de SQLite' --body-file .tools/phase1e2-pr-body.md
 ```
 
-Ese comando requiere una sesión con los permisos correspondientes; no cambia la
-protección ni fusiona o activa auto-merge. La entrega técnica y las pruebas locales
-están implementadas; la apertura/revisión del PR permanece pendiente por permiso.
+El PR ejecuta nuevamente CI para el evento `pull_request`; sus resultados se
+verifican antes de la entrega. Los checks de la tabla anterior corresponden al
+primer `push` y se conservan como evidencia independiente. La revisión y el merge
+quedan a cargo del propietario.
 
 Las 391 pruebas previas permanecen independientes de los nuevos casos. La CI
 habitual no necesita Docker, credenciales Telegram o AWS. Docker estaba instalado
@@ -205,13 +204,12 @@ No se modifican dependencias del lockfile, workflow de CI, snapshot/reglas
 financieras ni protección de `main`. El PR se crea hacia `main` y se deja sin
 merge ni auto-merge; su enlace y checks definitivos se registran en la entrega.
 
-La consulta de GitHub realizada en esta fase informó `viewerPermission: READ`
-para la autenticación disponible y `protected: true` para `main`. La consulta de
-protección clásica respondió **404** y la de rulesets devolvió una lista vacía;
-esa evidencia no permite confirmar los detalles actuales de checks o permisos
-de bypass. No se interpreta como autorización para cambiar reglas o eludir
-protección. La publicación y la CI remota se reportan según el resultado real,
-separadas de las verificaciones locales.
+La consulta con la cuenta correcta confirmó la protección clásica de `main`:
+PR obligatorio, checks `check (ubuntu-latest)` y `check (windows-latest)`, rama
+actualizada (`strict: true`), administradores incluidos, cero aprobaciones y
+force push/eliminación bloqueados. La lectura inicial con la otra cuenta había
+respondido 404; el cambio de sesión permitió verificar los detalles sin modificar
+las reglas.
 
 ## Riesgos y límites
 
