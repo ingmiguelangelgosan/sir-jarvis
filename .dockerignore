@@ -1,0 +1,26 @@
+# Deny by default: credentials, databases, fixtures, Git and local tools never enter.
+**
+!Dockerfile
+!package.json
+!package-lock.json
+!tsconfig.json
+!tsconfig.build.json
+!src/
+!src/**
+!migrations/
+!migrations/**
+!deploy/
+!deploy/healthcheck.mjs
+
+# Keep these excluded even if someone places a private artifact under src/.
+**/.env*
+**/.local/**
+**/node_modules/**
+**/*.sqlite
+**/*.sqlite-*
+**/*.db
+**/*.db-*
+**/*.jvb
+**/*.key
+**/*.pem
+**/*.crt

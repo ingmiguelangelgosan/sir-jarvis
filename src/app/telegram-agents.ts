@@ -294,6 +294,7 @@ export function loadTelegramAgentIntegration(
       store = new SqliteStateStore({
         path: resolve(environment.JARVIS_STATE_FILE),
       });
+      store.assertExternalEffectsAllowed();
     }
     const integration = createTelegramAgentIntegration(
       config,

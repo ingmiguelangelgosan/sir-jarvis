@@ -8,7 +8,7 @@ import {
   realpathSync,
 } from 'node:fs';
 import { dirname, isAbsolute, resolve } from 'node:path';
-import { DatabaseSync } from 'node:sqlite';
+import { backup, DatabaseSync } from 'node:sqlite';
 import { z } from 'zod';
 
 import { AgentGatewayError } from '../agents/errors.ts';
@@ -393,6 +393,7 @@ export class SqliteStateStore implements DurableStateStore {
   bind(namespace: string, fingerprint: string): void {
     this.#transaction(() => {
       identifierSchema.parse(namespace);
+      if (namespace.startsWith('recovery.v1.')) throw new Error();
       hashSchema.parse(fingerprint);
       const row = this.#db
         .prepare('SELECT fingerprint FROM bindings WHERE namespace=?')
@@ -463,6 +464,7 @@ export class SqliteStateStore implements DurableStateStore {
     readonly record: DurableExecution;
   } {
     return this.#transaction(() => {
+      this.#assertEffectsAllowed();
       const record = executionSchema.parse(value);
       if (
         record.phase !== 'reserved' ||
@@ -541,6 +543,7 @@ export class SqliteStateStore implements DurableStateStore {
       identifierSchema.parse(owner);
       timestamp.parse(now);
       const parsed = transitionSchema.parse(change);
+      if (parsed.phase === 'started') this.#assertEffectsAllowed();
       const current = this.#execution(key);
       if (
         !current ||
@@ -612,6 +615,7 @@ export class SqliteStateStore implements DurableStateStore {
     readonly record: DurableAction;
   } {
     return this.#transaction(() => {
+      this.#assertEffectsAllowed();
       const record = actionSchema.parse(value);
       if (record.phase !== 'reserved') throw new Error();
       const current = this.#action(record.key);
@@ -644,6 +648,7 @@ export class SqliteStateStore implements DurableStateStore {
     now: number,
   ): void {
     this.#transaction(() => {
+      if (phase === 'delivery-started') this.#assertEffectsAllowed();
       identifierSchema.parse(key);
       identifierSchema.parse(owner);
       actionPhase.parse(phase);
@@ -671,7 +676,18 @@ export class SqliteStateStore implements DurableStateStore {
       const row = this.#db
         .prepare('SELECT offset FROM offsets WHERE namespace=?')
         .get(namespace);
-      return row ? timestamp.parse(row.offset) : undefined;
+      const floor = this.#db
+        .prepare(
+          "SELECT fingerprint FROM bindings WHERE namespace='recovery.v1.offset'",
+        )
+        .get()?.fingerprint;
+      const minimum =
+        floor === undefined
+          ? undefined
+          : timestamp.parse(Number.parseInt(hashSchema.parse(floor), 16));
+      return row
+        ? Math.max(timestamp.parse(row.offset), minimum ?? 0)
+        : minimum;
     });
   }
 
@@ -735,6 +751,196 @@ export class SqliteStateStore implements DurableStateStore {
         .run(before);
       return rows.length;
     });
+  }
+
+  #assertEffectsAllowed(): void {
+    const marker = this.#db
+      .prepare(
+        "SELECT fingerprint FROM bindings WHERE namespace='recovery.v1.gate'",
+      )
+      .get()?.fingerprint;
+    if (marker !== undefined && marker !== '0'.repeat(64))
+      throw new AgentGatewayError('UNAVAILABLE', 'uncertain');
+  }
+
+  /** Infrastructure guard; restored copies cannot create new effects by default. */
+  assertExternalEffectsAllowed(): void {
+    this.#safe(() => this.#assertEffectsAllowed());
+  }
+
+  recoveryStatus(): {
+    readonly status: 'normal' | 'blocked' | 'authorized';
+    readonly restoreId?: string;
+  } {
+    return this.#safe(() => {
+      const marker = this.#db
+        .prepare(
+          "SELECT fingerprint FROM bindings WHERE namespace='recovery.v1.gate'",
+        )
+        .get()?.fingerprint;
+      if (marker === undefined) return { status: 'normal' };
+      const id = hashSchema.parse(
+        this.#db
+          .prepare(
+            "SELECT fingerprint FROM bindings WHERE namespace='recovery.v1.id'",
+          )
+          .get()?.fingerprint,
+      );
+      hashSchema.parse(marker);
+      return {
+        status: marker === '0'.repeat(64) ? 'authorized' : 'blocked',
+        restoreId: id,
+      };
+    });
+  }
+
+  /** Only the isolated restore workflow calls this, before publishing its new DB. */
+  blockRecovery(restoreId: string, now: number): void {
+    this.#transaction(() => {
+      hashSchema.parse(restoreId);
+      timestamp.parse(now);
+      if (restoreId === '0'.repeat(64)) throw new Error();
+      this.#db
+        .prepare("DELETE FROM bindings WHERE namespace LIKE 'recovery.v1.%'")
+        .run();
+      for (const name of ['gate', 'id'])
+        this.#db
+          .prepare('INSERT INTO bindings(namespace,fingerprint) VALUES(?,?)')
+          .run(`recovery.v1.${name}`, restoreId);
+      this.#audit(restoreId, 'recovery.blocked', now);
+    });
+  }
+
+  /** Operator review does not resolve, delete or retry any historical operation. */
+  authorizeRecovery(
+    restoreId: string,
+    evidenceHash: string,
+    nextTelegramOffset: number,
+    now: number,
+  ): void {
+    this.#transaction(() => {
+      hashSchema.parse(restoreId);
+      hashSchema.parse(evidenceHash);
+      timestamp.parse(now);
+      timestamp.min(1).parse(nextTelegramOffset);
+      const current = this.recoveryStatus();
+      if (current.status !== 'blocked' || current.restoreId !== restoreId)
+        throw new Error();
+      this.#db
+        .prepare(
+          "UPDATE bindings SET fingerprint=? WHERE namespace='recovery.v1.gate'",
+        )
+        .run('0'.repeat(64));
+      for (const [name, value] of [
+        ['review', evidenceHash],
+        ['offset', nextTelegramOffset.toString(16).padStart(64, '0')],
+      ])
+        this.#db
+          .prepare('INSERT INTO bindings(namespace,fingerprint) VALUES(?,?)')
+          .run(`recovery.v1.${name}`, value!);
+      this.#audit(restoreId, 'recovery.authorized', now);
+    });
+  }
+
+  inspect() {
+    return this.#safe(() => {
+      const counts = (table: 'executions' | 'actions') =>
+        Object.fromEntries(
+          this.#db
+            .prepare(
+              `SELECT phase,count(*) AS total FROM ${table} GROUP BY phase`,
+            )
+            .all()
+            .map((row) => [String(row.phase), Number(row.total)]),
+        );
+      const executionRows = this.#db
+        .prepare(
+          "SELECT key FROM executions WHERE phase IN ('reserved','started','pending','uncertain') ORDER BY created_at,key LIMIT 101",
+        )
+        .all();
+      const actionRows = this.#db
+        .prepare(
+          "SELECT key FROM actions WHERE phase IN ('reserved','result-confirmed','delivery-pending','delivery-started','delivery-uncertain') ORDER BY created_at,key LIMIT 101",
+        )
+        .all();
+      return {
+        schemaVersion: 1,
+        recovery: this.recoveryStatus(),
+        executions: counts('executions'),
+        actions: counts('actions'),
+        review: {
+          executions: executionRows.slice(0, 100).map((row) => {
+            const entry = this.#execution(String(row.key))!;
+            return {
+              key: entry.key,
+              phase: entry.phase,
+              requestId: entry.context.request_id,
+              correlationId: entry.context.correlation_id,
+              ...(entry.operationId ? { operationId: entry.operationId } : {}),
+              updatedAt: entry.updatedAt,
+            };
+          }),
+          actions: actionRows.slice(0, 100).map((row) => {
+            const entry = this.#action(String(row.key))!;
+            return {
+              key: entry.key,
+              phase: entry.phase,
+              updatedAt: entry.updatedAt,
+            };
+          }),
+          truncated: executionRows.length > 100 || actionRows.length > 100,
+        },
+      };
+    });
+  }
+
+  checkIntegrity(): void {
+    this.#safe(() => {
+      const rows = this.#db.prepare('PRAGMA integrity_check').all();
+      if (
+        rows.length !== 1 ||
+        rows[0]?.integrity_check !== 'ok' ||
+        this.#db.prepare('PRAGMA foreign_key_check').all().length
+      )
+        throw new Error();
+    });
+  }
+
+  /** Isolated snapshots only: require all committed pages in main before transfer. */
+  sealForTransfer(): void {
+    this.#safe(() => {
+      const checkpoint = this.#db
+        .prepare('PRAGMA wal_checkpoint(TRUNCATE)')
+        .get();
+      if (
+        checkpoint?.busy !== 0 ||
+        checkpoint.log !== 0 ||
+        checkpoint.checkpointed !== 0
+      )
+        throw new Error();
+      if (
+        this.#db.prepare('PRAGMA journal_mode=DELETE').get()?.journal_mode !==
+        'delete'
+      )
+        throw new Error();
+    });
+  }
+
+  /** Online SQLite Backup API, not a copy of a possibly incomplete WAL main file. */
+  async backupTo(path: string, deadlineMs = 30_000): Promise<void> {
+    try {
+      this.#safe(() => undefined);
+      const deadline = performance.now() + deadlineMs;
+      await backup(this.#db, path, {
+        rate: 64,
+        progress: () => {
+          if (performance.now() >= deadline) throw new Error();
+        },
+      });
+      this.#safe(() => undefined);
+    } catch {
+      throw new AgentGatewayError('UNAVAILABLE', 'uncertain');
+    }
   }
 
   close(): void {

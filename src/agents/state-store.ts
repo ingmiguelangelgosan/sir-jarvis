@@ -56,6 +56,8 @@ export interface DurableAction {
 
 /** Provider-neutral atomic operations. No payloads, credentials or channel IDs. */
 export interface DurableStateStore {
+  /** Local recovery implementations may block external effects after restore. */
+  assertExternalEffectsAllowed?(): void;
   bind(namespace: string, fingerprint: string): void;
   reserveExecution(value: DurableExecution): {
     readonly created: boolean;

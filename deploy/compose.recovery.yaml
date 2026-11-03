@@ -1,0 +1,8 @@
+# Explicit opt-in only after isolated restore and operator reconciliation.
+# Never replace the active original volume; runtime consumer guard stays shared.
+services:
+  jarvis:
+    environment:
+      JARVIS_STATE_FILE: '/recovery/${JARVIS_RESTORE_NAME:-restore-01}/state.sqlite'
+    volumes:
+      - jarvis_recovery:/recovery

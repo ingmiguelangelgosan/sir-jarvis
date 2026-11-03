@@ -105,8 +105,14 @@ antes de cambiar reservas, retención o recuperación. No guardar inputs/outputs
 completos, mensajes o IDs personales en claro. Reservar antes del efecto y no
 reejecutar una clave recuperada incierta. Una DB configurada ausente/corrupta o
 incompatible debe fallar cerrada; nunca recrearla o degradar a memoria.
-Antes de efectos sensibles o despliegue AWS, Fase 1E.2 debe completar Compose,
-backups, restauración y recuperación **locales**, con sus pruebas.
+Fase 1E.2 incorpora Compose, backups y restauración **locales**; leer
+[LOCAL_DEPLOYMENT](LOCAL_DEPLOYMENT.md), [BACKUP_RESTORE](BACKUP_RESTORE.md) y su
+[validación](PHASE_1E2_VALIDATION.md) antes de cambiar operación o recuperación.
+No copiar solo la DB principal con WAL activo. Toda restauración se publica en
+destino nuevo y bloqueada en DB hasta conciliación/autorización explícita; una
+copia íntegra no prueba ausencia de efectos posteriores. No eludir ese bloqueo,
+recrear historia o prometer exactly-once. Los locks locales requieren directorio
+compartido por instalación; no son exclusión distribuida.
 
 ## Trabajo y verificación
 

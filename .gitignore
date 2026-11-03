@@ -9,6 +9,9 @@ coverage/
 *.sqlite-*
 *.db
 *.db-*
+*.jvb
+*.runtime-lock
+*.runtime-lock-*
 *.tsbuildinfo
 
 # Credenciales y archivos privados; solo se versiona el ejemplo

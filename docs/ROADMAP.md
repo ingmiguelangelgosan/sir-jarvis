@@ -99,7 +99,9 @@ offset, resultados y pending siguen en memoria y se pierden al reiniciar.
 Solo lectura en este corte: no se habilitan efectos sensibles, IA, eventos,
 DB, nuevos repositorios o infraestructura AWS.
 
-## Fase 1E.1 — persistencia durable e idempotencia: IMPLEMENTADA LOCALMENTE
+## Fase 1E.1 — persistencia durable e idempotencia: FUSIONADA
+
+PR #7 fusionado en main, verificado antes de iniciar Fase 1E.2.
 
 Puerto de almacenamiento separado, SQLite WAL/FULL mediante Node24 sin ORM y
 migración versionada. [ADR](adr/0001-durable-state-sqlite.md). Se activa con
@@ -121,22 +123,36 @@ temporales reales, cierre/reapertura y fallos sin credenciales, AWS o Docker.
 No prometer exactly-once, idempotencia de negocio o restauración de backups por
 estos controles. Siguen solo lectura, perfil no-paid-services e IA apagada.
 
-## Fase 1E.2 — Compose, backups y recuperación local: SIGUIENTE
+## Fase 1E.2 — Compose, backups y recuperación local: IMPLEMENTADA LOCALMENTE
 
-Preparar Docker Compose local con imágenes reproducibles, migraciones distribuidas,
+Docker Compose local con imágenes reproducibles, migraciones distribuidas,
 secretos separados, redes/egreso y TLS sin bypass, límites de recursos, salud,
 cierre ordenado y rollback. Un único consumidor Telegram y almacenamiento local
 durable con acceso privado. No basta montar una carpeta para garantizar recuperación.
 
-Implementar backups coherentes con WAL, retención/cifrado autorizados y restauración
-aislada. Probar pérdida de proceso/host, copia antigua, corte de red, estado incierto,
-duplicados concurrentes y conciliación antes de reabrir tráfico. Medir recuperación
-y documentar RPO/RTO antes de prometerlos; no sobrescribir datos reales como prueba.
+Backups coherentes con WAL, cifrado autenticado, retención configurable y
+restauración aislada. Toda copia restaurada bloquea nuevos efectos dentro de la
+DB hasta conciliación y autorización explícita del operador. Una copia íntegra
+puede desconocer operaciones posteriores; sin registro externo independiente no
+se detecta todo rollback. Conservar reservas y tombstones, sin retries ciegos.
+No sobrescribir datos reales como prueba. Las pruebas ejecutadas y pendientes,
+mediciones locales y comandos constan en [PHASE_1E2_VALIDATION](PHASE_1E2_VALIDATION.md).
+Guías: [Compose](LOCAL_DEPLOYMENT.md) y [backup/restore](BACKUP_RESTORE.md).
 
 Aceptación: Compose ejecutado localmente y restauración comprobada sin reejecutar
 efectos desconocidos. Requisito previo a AWS con efectos sensibles, no autorización
 de desplegar. Lightsail sigue como principal previsto; Billing, créditos, región,
 presupuesto y recursos concretos requieren revisión y aprobación separadas.
+
+## Siguiente corte — preparación del piloto AWS, sin despliegue automático
+
+Solo después del merge de Fase 1E.2 y de resolver sus pendientes de recuperación:
+revisar el entorno Lightsail previsto, medir capacidad representativa, definir
+custodia de claves y copia fuera del host, demostrar restore/conciliación y
+documentar límites de RPO/RTO. Verificar región, cotización, Billing, créditos y
+presupuesto antes de solicitar autorización concreta de recursos. Un plan o una
+configuración Compose no autorizan contratación, pago, despliegue o efectos
+sensibles. Conservar lectura, `no-paid-services` e IA apagada.
 
 ## Fase 2 — primer agente real externo
 

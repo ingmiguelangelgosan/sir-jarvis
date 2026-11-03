@@ -190,8 +190,12 @@ Puede perderse una respuesta; no hay outbox con payloads ni exactly-once.
 
 La compactación explícita tras al menos siete días redacta detalle terminal
 elegible y mantiene tombstones; pending e inciertos no se borran automáticamente.
-Fase 1E.2 implementará Docker Compose local, backups coherentes, restauración y
-recuperación antes de cualquier despliegue AWS con efectos sensibles.
+Fase 1E.2 añade Docker Compose local, backup coherente cifrado y restauración en
+un destino nuevo. La DB restaurada incorpora un bloqueo de recuperación antes
+de publicarse: ni su integridad ni un conteo cero de pendientes autorizan nuevos
+efectos. El operador debe conciliar el intervalo perdido y autorizar esa
+restauración explícitamente. [Operación](BACKUP_RESTORE.md),
+[evidencia](PHASE_1E2_VALIDATION.md).
 
 Distinguir aceptación, pendiente, completada, fallida e incierta. Registrar actor
 opaco, agente, IDs, estado y timestamps sin secretos ni contenido innecesario.
@@ -204,9 +208,18 @@ Las claves de negocio y transacciones se implementan en el agente de dominio.
 
 Objetivo inicial: Ubuntu en AWS Lightsail y Docker Compose, bajo autorización futura.
 Plan y límites en [DEPLOYMENT_STRATEGY](DEPLOYMENT_STRATEGY.md) y
-[AWS_DEPLOYMENT_PLAN](AWS_DEPLOYMENT_PLAN.md). No hay Dockerfile,
-Compose operativo ni recursos contratados en esta fase. Jarvis seguirá siendo un
+[AWS_DEPLOYMENT_PLAN](AWS_DEPLOYMENT_PLAN.md). El Dockerfile y Compose de Fase
+1E.2 son preparación local, sin recursos contratados. Jarvis seguirá siendo un
 proceso modular; aplicaciones externas pueden desplegarse juntas o por separado.
 HTTPS/JSON es el primer transporte y MCP un adaptador posterior con los mismos
 permisos. Una cola distribuida solo se considerará ante métricas de volumen,
 backpressure o varias réplicas que superen una inbox/outbox transaccional.
+
+El runtime usa locks SQLite separados del estado, con transacción exclusiva y
+journal DELETE, para impedir dos consumidores locales que compartan directorio
+y bot. Los locks se liberan al morir el proceso; no se relevan mediante TTL.
+No garantizan exclusión entre hosts o directorios independientes. El estado
+permanece WAL/FULL y admite el backup consistente por la API SQLite mientras hay
+escrituras. No se amplía el contrato de agentes ni se abre ningún puerto público.
+Los secretos montados no se cifran por el mero uso de Compose. Ver
+[arquitectura de contenedores](LOCAL_DEPLOYMENT.md#fronteras-de-contenedores-y-red).

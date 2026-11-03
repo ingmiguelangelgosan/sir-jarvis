@@ -346,8 +346,9 @@ usa el ID autenticado del bot; adaptadores directos sin ese ID usan su username
 como fallback y deben mantenerlo estable.
 
 Aplican ORC-01/02/03/04/05/06/07/08/12. Fase 1E.1 añade el almacén opcional siguiente.
-Fase 1E.2 completará Docker Compose, backups, restauración y recuperación **local**,
-antes de AWS o efectos sensibles.
+Fase 1E.2 añade Docker Compose, backups, restauración y recuperación **local**,
+antes de AWS o efectos sensibles. [Guía local](LOCAL_DEPLOYMENT.md),
+[recuperación](BACKUP_RESTORE.md).
 
 ## Persistencia opcional y reinicios
 
@@ -393,10 +394,22 @@ mensaje nuevo, su acción lógica es distinta; no usarlo para ocultar incertidum
 La reserva de agente también se conserva: completed sin output persistido queda
 como estado conocido; pending recuperado no añade polling remoto automático.
 
-Conservar archivo y sidecars según la estrategia de respaldo futura. No borrar
+Conservar archivo y sidecars según la [estrategia de respaldo](BACKUP_RESTORE.md).
+No copiar solo el archivo principal durante escrituras WAL. No borrar
 reservas, resetear offset o restaurar una copia antigua para forzar reenvíos.
 La compactación tras siete días redacta detalle terminal elegible, conserva
 tombstones y no elimina pending/inciertos. [Esquema y límites](AGENT_RUNTIME.md#estado-durable-opcional-de-fase-1e1),
 [ADR](adr/0001-durable-state-sqlite.md), [pruebas de recuperación](PHASE_1E1_VALIDATION.md).
 El supervisor `telegram:agents:demo` sigue siendo temporal y usa claves efímeras:
 no prueba continuidad de la instalación del operador entre sus ejecuciones.
+
+Fase 1E.2 añade exclusión local por bot antes del polling, además del lock de
+estado cuando hay DB configurada. Todos los consumidores deben compartir el
+directorio de runtime; dos hosts o directorios independientes no comparten la
+exclusión. No iniciar otro proceso con el mismo token para probar concurrencia
+real. Las pruebas automatizadas usan identidades ficticias y procesos aislados.
+
+Las restauraciones siempre se publican aisladas y bloqueadas. Un offset antiguo
+puede hacer que Telegram entregue otra vez acciones ausentes de la copia; incluso
+si no aparecen operaciones pendientes se debe conciliar el intervalo perdido
+antes de autorizar tráfico. No usar una nueva DB o clave HMAC para forzar reenvíos.

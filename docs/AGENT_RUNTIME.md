@@ -500,8 +500,30 @@ conservar DB y clave, y arrancarlo de nuevo con la misma configuración. Un mens
 ya reservado no debe reenviar su consulta/respuesta. No simular pérdidas borrando
 la DB productiva o usando operaciones sensibles.
 
-Fase 1E.2 abordará Compose, backups coherentes, restauración y recuperación local.
+Fase 1E.2 incorpora [Compose local](LOCAL_DEPLOYMENT.md) y el procedimiento de
+[backup/restauración](BACKUP_RESTORE.md), con evidencia separada en su
+[validación](PHASE_1E2_VALIDATION.md).
 No copiar únicamente el archivo principal mientras WAL pueda contener commits
 pendientes de checkpoint; no restaurar una copia antigua y reanudar efectos sin
 conciliar. AWS sigue sin desplegar; no se habilitan escritura de negocio, IA,
 Dispatcher o pagos por disponer de SQLite. Aplican ORC-02/03/05/06/07/08/11/12.
+
+## Recuperación de backups y exclusión local de Fase 1E.2
+
+Toda restauración se prepara en un directorio nuevo y queda bloqueada dentro de
+la DB antes de ser publicada. El bot comprueba ese bloqueo antes de conectar y
+el almacén antes de reservar o habilitar nuevas ejecuciones. Las claves ya
+presentes conservan sus estados; una reserva desconocida en un backup viejo no
+se considera automáticamente segura. Autorizar recuperación exige conciliación
+explícita del operador y trazabilidad a la restauración concreta.
+
+La consistencia SQLite no detecta operaciones externas posteriores al backup.
+Sin un registro independiente no se puede probar que el intervalo perdido carece
+de efectos. No reejecutar para reconstruir outputs, no reinicializar la DB y no
+prometer idempotencia de negocio o exactly-once tras restaurar.
+
+El runtime mantiene exclusión de estado y de bot mediante DB de locks separadas,
+sin bloquear la DB WAL durante todo el polling. La liberación depende del lock
+del sistema operativo, no de una expiración de lease. Todos los consumidores de
+la instalación deben compartir el directorio privado de runtime; este control
+no se extiende a hosts/copias/directorios independientes.

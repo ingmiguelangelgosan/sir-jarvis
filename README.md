@@ -14,6 +14,9 @@ deshabilitados por defecto; el recorrido completo se prueba con Telegram simulad
 y Echo HTTPS independiente. La nueva aceptación con Telegram real queda para el operador.
 Fase 1E.1 añade estado durable opcional en SQLite WAL para reservas, acciones y
 offsets, con recuperación conservadora y sin guardar mensajes u outputs completos.
+Fase 1E.2 añade contenedorización local, backups cifrados coherentes con WAL y
+restauración aislada bloqueada hasta conciliación. Su evidencia se distingue de
+un despliegue AWS o de una garantía exactamente-una-vez.
 La licencia definitiva sigue pendiente.
 
 Jarvis centraliza permisos, conversaciones, coordinación y notificaciones.
@@ -34,6 +37,9 @@ un agente o por este diseño.
 - [Finance Agent independiente](docs/agents/FINANCE_AGENT_SPEC.md)
 - [Trazabilidad financiera](docs/agents/FINANCE_AGENT_TRACEABILITY.md)
 - [Validación de Fase 1E.1](docs/PHASE_1E1_VALIDATION.md)
+- [Ejecución local con Docker Compose](docs/LOCAL_DEPLOYMENT.md)
+- [Backups y restauración segura](docs/BACKUP_RESTORE.md)
+- [Validación de Fase 1E.2](docs/PHASE_1E2_VALIDATION.md)
 - [Decisión SQLite WAL](docs/adr/0001-durable-state-sqlite.md)
 - [Git, protección de main y PR](docs/GIT_WORKFLOW.md)
 
