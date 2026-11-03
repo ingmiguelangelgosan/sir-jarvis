@@ -7,6 +7,22 @@ fusionado el `2026-11-03T19:04:31Z`, commit
 `fcbe50f2c59f3f1266a02f4b4ec609924d90af9d`. Se actualizó `main`, se comprobó
 árbol limpio y se creó `feat/aws-lightsail-pilot-readiness`.
 
+Entrega para revisión en el
+[PR #9](https://github.com/ingmiguelangelgosan/sir-jarvis/pull/9), hacia `main`;
+no se fusiona ni activa auto-merge. El conector GitHub rechazó la creación con
+`Resource not accessible by integration`; se usó la sesión ya autorizada del
+propietario en GitHub CLI para abrirlo. La lectura del conector sí permitió
+verificar el merge previo y consultar jobs; no se modificaron permisos.
+
+La protección de `main` se volvió a leer sin cambios: PR obligatorio, checks
+`check (ubuntu-latest)` y `check (windows-latest)`, `strict: true`, administradores
+incluidos, cero aprobaciones y force push/eliminación bloqueados. La CI del
+commit inicial `73ac33f` puede consultarse en
+[push](https://github.com/ingmiguelangelgosan/sir-jarvis/actions/runs/41702175299)
+y [pull_request](https://github.com/ingmiguelangelgosan/sir-jarvis/actions/runs/41702244084).
+Los checks del último commit se verifican en el PR antes de la entrega; las
+ejecuciones locales no los sustituyen.
+
 La entrega prepara un piloto, **sin desplegarlo**. No se accedió a AWS, Billing,
 credenciales AWS o cuentas de backup, ni se crearon recursos, buckets, presupuestos
 o gastos. Las consultas de precios son públicas y se citan en el
