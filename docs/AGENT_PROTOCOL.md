@@ -1,7 +1,8 @@
 # Protocolo de agentes — borrador 1.0
 
 **Estado:** contrato definido en Fase 1A.5; Fase 1B implementa validación local y
-transporte simulado. Todavía no hay HTTPS con agentes externos.
+transporte simulado. Fase 1C añade HTTPS real probado con un fixture independiente
+local; no implica agentes de dominio conectados ni un despliegue de producción.
 Los [tipos TypeScript](../src/agents/protocol.ts) son puertos y datos puros, no
 validadores, autenticación ni controles de gasto. La especificación es independiente
 del lenguaje; un agente no necesita importar Jarvis, su SDK o su base de datos.
@@ -77,7 +78,7 @@ como instrucciones. Un resultado es información no confiable, nunca una orden.
    No aceptar respuestas cruzadas. Jarvis persiste referencias/estado, no los datos
    internos del agente ni resultados completos por defecto.
 
-Ejemplo ficticio (Eco Demo; no es una aplicación implementada):
+Ejemplo ficticio (Eco Demo; el fixture de testing de Fase 1C implementa `echo.reply`):
 
 ```json
 {
@@ -116,6 +117,11 @@ Alternativa HTTP 202: mismo envelope, `status: "pending"`, `operation_id` opaco
 y `poll_after_ms` positivo, sin `output` ni `error`. Consultar después
 `GET /v1/operations/{operation_id}` con el mismo contexto autorizado o esperar un
 evento autenticado. El GET es de lectura, no vuelve a ejecutar la acción.
+El transporte de Fase 1C envía como query parameters `protocol_version`,
+`instance_id`, `agent_id`, `subject_ref`, `request_id` y `correlation_id`;
+el path contiene únicamente el `operation_id` validado. No hay body de GET,
+tokens en URL ni headers arbitrarios del mensaje. El agente debe limitar logs
+de acceso: esos parámetros contienen contexto interno opaco.
 Una aceptación pendiente no es éxito de negocio. Una expiración del timeout de
 Jarvis no cancela efectos del agente ni autoriza crear otra ejecución.
 
@@ -262,9 +268,14 @@ a agentes reales; la deduplicación actual de Telegram en memoria no los sustitu
 
 Fase 1B implementa Registry/Gateway con adaptador falso y tests de permisos,
 schemas, deadlines, concurrencia, cancelación e idempotencia en memoria.
-[Semántica local y límites](AGENT_RUNTIME.md). Fase 1C verificará HTTPS contra una aplicación
-ficticia independiente. Eventos públicos y tareas autónomas esperan Fase 3.
-Los contratos no están conectados al bot ni habilitan servicios externos.
+[Semántica local y límites](AGENT_RUNTIME.md). Fase 1C verifica HTTPS contra un
+fixture independiente local. El transporte exige HTTP 200/completed,
+202/pending o el código HTTP de referencia exacto para failed, JSON UTF-8 sin
+compresión y respuestas sin campos repetidos. Un 429/503 sin envelope válido
+correlacionado no es evidencia de rechazo seguro y no habilita retries.
+`Retry-After` válido se combina con `retry_after_ms` tomando el mayor; valores
+inválidos se rechazan. Eventos públicos y tareas autónomas esperan Fase 3.
+Los contratos no están conectados al bot ni habilitan servicios comerciales.
 
 MCP podrá añadirse como otro adaptador del Gateway, mapeando identidad, permisos,
 correlación, límites e idempotencia; no aporta autorización automática ni sustituye

@@ -13,17 +13,18 @@ o repositorio en esta fase.
 | Bootstrap, configuración y diagnóstico      | Implementados y probados                                              |
 | Channel Layer: Telegram texto               | Implementada; aceptación real reportada por el operador el 2026-11-02 |
 | Core: respuestas /start, /status y fallback | Implementado, determinista y sin enrutamiento externo                 |
-| Agent Registry / Agent Gateway              | Fase 1B: memoria, validación y transporte falso; sin HTTP             |
+| Agent Registry / Agent Gateway              | Memoria, validación, fake y transporte HTTPS de Fase 1C               |
 | Event Dispatcher                            | Diseño; sin endpoint externo ni inbox durable                         |
 | AI Gateway                                  | Diseñado; proveedores deshabilitados                                  |
 | Persistence Layer                           | Diseñada; sin nueva DB                                                |
-| Agentes externos                            | Ninguno conectado ni implementado aquí                                |
+| Agentes externos                            | Fixture HTTPS independiente en testing; sin agentes de dominio        |
 
 El comportamiento y las respuestas actuales de Telegram se conservan, incluso
 su texto de Fase 1A. El diagnóstico sigue describiendo el último corte funcional
 y no afirma que el orquestador ya pueda invocar agentes.
 El caso de uso programático `AgentExecutionService` y `agents:demo` demuestran
-autorización y ejecución simulada por separado. No se conecta esta API al bot.
+autorización y ejecución simulada por separado. `agents:https:demo` verifica el
+transporte real entre procesos en testing. No se conecta esta API al bot.
 
 ## Diagrama objetivo
 
@@ -125,8 +126,14 @@ Una interfaz no exige un directorio por componente; crear archivos cuando tengan
 uso verificable. No introducir nuevos paquetes, base de datos, ORM, scheduler,
 servidor webhook, cola o microservicios internos por anticipación.
 
-La primera conexión real del Gateway esperará Fase 1C y un agente ficticio
-independiente autorizado. Una eventual librería compartida o schema publicable
+Fase 1C añade `HttpsAgentTransport`, resolver de credenciales server-only y política
+de red por origen. Cada conexión valida todas las respuestas DNS, fija una IP y
+verifica peer/TLS/nombre antes de enviar el Bearer y el cuerpo. No sigue redirects,
+no usa proxies ambientales ni descarga manifests. El transporte valida JSON,
+schemas/contexto y coherencia HTTP/estado; el Gateway conserva retries, reservas
+y resultados inciertos sin cambiar su semántica. Un fixture separado, sin imports
+de Jarvis y fuera del build, comprueba HTTPS local con CA efímera. No es un agente
+de dominio desplegado. Una eventual librería compartida o schema publicable
 se evaluará después de probar compatibilidad entre lenguajes; el protocolo no
 obliga a importar el código de Jarvis.
 
@@ -146,10 +153,11 @@ Las claves de negocio y transacciones se implementan en el agente de dominio.
 
 ## Despliegue y extensión
 
-Objetivo inicial: Ubuntu en un Droplet y Docker Compose, bajo autorización futura.
-Plan y límites en [DEPLOYMENT_STRATEGY](DEPLOYMENT_STRATEGY.md). No hay Dockerfile,
+Objetivo inicial: Ubuntu en AWS Lightsail y Docker Compose, bajo autorización futura.
+Plan y límites en [DEPLOYMENT_STRATEGY](DEPLOYMENT_STRATEGY.md) y
+[AWS_DEPLOYMENT_PLAN](AWS_DEPLOYMENT_PLAN.md). No hay Dockerfile,
 Compose operativo ni recursos contratados en esta fase. Jarvis seguirá siendo un
 proceso modular; aplicaciones externas pueden desplegarse juntas o por separado.
-HTTPS/JSON será el primer transporte y MCP un adaptador posterior con los mismos
+HTTPS/JSON es el primer transporte y MCP un adaptador posterior con los mismos
 permisos. Una cola distribuida solo se considerará ante métricas de volumen,
 backpressure o varias réplicas que superen una inbox/outbox transaccional.

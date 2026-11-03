@@ -1,6 +1,6 @@
 import type { AgentExecutionRequest, AgentOperationQuery } from './protocol.ts';
 
-/** Puerto inyectado. Esta fase solo lo compone con funciones simuladas, nunca HTTP. */
+/** Puerto inyectado: fake local o adaptador HTTPS; sin reglas de dominio. */
 export interface AgentTransport {
   execute(
     request: AgentExecutionRequest,

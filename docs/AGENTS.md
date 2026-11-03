@@ -67,7 +67,7 @@ src/
   channels/cli/         # diagnóstico local
   channels/telegram/    # adaptador existente
   infrastructure/       # entorno local
-  agents/               # tipos, validación y Registry/Gateway en memoria con fake
+  agents/               # protocolo, Registry/Gateway, fake y transporte HTTPS
 tests/
 docs/
   agents/               # especificación de proyectos externos, sin runtime
@@ -79,7 +79,13 @@ falso, actor autenticado separado del mensaje, validación y reservas concurrent
 Mantener tests de cancelación, deadlines, TTL y resultado incierto; no sustituirlos
 por pruebas solo secuenciales. La memoria no es idempotencia durable o de dominio.
 No crear carpetas vacías, DB, colas, microservicios internos ni una librería
-publicada prematura. HTTPS/JSON será el primer transporte externo; MCP es futuro.
+publicada prematura. Fase 1C incorpora HTTPS/JSON validado con un fixture
+independiente entre procesos; no está conectado al bot. La política productiva
+niega loopback/link-local/metadata y valida DNS/IP en cada conexión. Excepciones
+de loopback solo en tests, excluidas del build, con CA temporal y TLS verificado.
+MCP es futuro. AWS/Lightsail es la estrategia principal documentada, sin despliegue
+ni acceso a la cuenta. Ver [plan AWS](AWS_DEPLOYMENT_PLAN.md); los créditos no
+autorizan gastos.
 
 ## Trabajo y verificación
 
