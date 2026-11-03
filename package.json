@@ -17,6 +17,8 @@
     "telegram:start": "node dist/app/telegram-main.js",
     "agents:demo": "node src/app/agent-demo.ts",
     "agents:https:demo": "node tests/run-agent-https-demo.ts",
+    "agents:telegram:demo": "node tests/run-telegram-agents-demo.ts",
+    "telegram:agents:demo": "node tests/run-telegram-agents-live.ts",
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/app/main.js",
     "typecheck": "tsc --noEmit",

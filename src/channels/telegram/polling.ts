@@ -46,6 +46,7 @@ export async function runTelegramPolling(
       identity.username,
       api,
       hooks,
+      identity.id,
     );
     hooks.log?.('telegram-started');
     failures = 0;

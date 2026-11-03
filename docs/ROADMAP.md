@@ -57,8 +57,9 @@ inválidos, permisos insuficientes, deadline y duplicados se prueban sin red ni
 cargos. No interpretar memoria como protección durable de producción.
 [Prompt recomendado](prompts/PHASE_1B_PROMPT.md).
 
-## Fase 1C — agente ficticio independiente y HTTPS: IMPLEMENTADA LOCALMENTE
+## Fase 1C — agente ficticio independiente y HTTPS: FUSIONADA
 
+PR #5 fusionado en main, verificado antes de iniciar Fase 1D.
 Transporte HTTPS real con Bearer server-only, TLS, allowlist, DNS/IP fijada,
 rechazo de SSRF/redirects y validación estricta. Demo `agents:https:demo` contra
 un fixture independiente ejecutado como otro proceso, sin imports de Jarvis ni
@@ -74,16 +75,64 @@ Aceptación: compatibilidad comprobada entre procesos y versiones, sin importar
 código interno del otro proyecto. Cualquier creación de repositorio o alojamiento
 se autoriza por separado. Mantener fixtures, mocks y tests sin credenciales.
 
+## Fase 1D — Telegram con Registry/Gateway: IMPLEMENTADA LOCALMENTE
+
+Integración opcional y deshabilitada por defecto del adaptador Telegram existente
+con `AgentExecutionService`, Registry, Gateway y transporte HTTPS de Fase 1C.
+Comandos `/agents` y `/agent` deterministas, bindings de identidad internos,
+permisos por sujeto/capacidad, perfil `no-paid-services` y rechazo de escrituras.
+El primer contrato conversacional soportado es `echo.reply` 1.0 de lectura;
+otras capacidades requieren adaptación explícita, no descubrimiento automático.
+`/start`, `/status` y los comportamientos sin integración se conservan.
+
+Aceptación automatizada: Telegram simulado → Core → Gateway → Echo HTTPS
+independiente → respuesta de Telegram simulada, incluyendo autenticación,
+permisos, duplicados concurrentes, errores seguros, cancelación y timeout.
+Una prueba de piezas aisladas no satisface esta fase. Demo:
+`npm run agents:telegram:demo`. La [guía manual](TELEGRAM.md#prueba-manual-con-telegram-real-y-echo-local)
+permite al operador probar su bot real con un supervisor temporal; su nueva
+aceptación real está pendiente y no se infiere de la evidencia simulada.
+[Resultados y límites](PHASE_1D_VALIDATION.md).
+
+Claves HMAC estables por acción, sin enviar IDs Telegram al agente; reservas,
+offset, resultados y pending siguen en memoria y se pierden al reiniciar.
+Solo lectura en este corte: no se habilitan efectos sensibles, IA, eventos,
+DB, nuevos repositorios o infraestructura AWS.
+
+## Fase 1E — persistencia durable, Compose y recuperación local: SIGUIENTE
+
+Elegir almacenamiento mínimo para configuración, permisos, estados, claves de
+deduplicación y auditoría mínima, sin copiar datos de dominio. Implementar y
+probar transiciones durables, arranque y cierre, expiración/retención, reinicios,
+conciliación de operaciones inciertas y recuperación sin repetir efectos a ciegas.
+No basta con restaurar un snapshot de disco: debe preservarse la semántica de
+solicitudes pendientes y claves antes de reabrir tráfico.
+
+Preparar Docker Compose local con imágenes reproducibles, secretos separados,
+redes/egreso y TLS sin bypass, límites de recursos, salud y rollback. Probar backup
+y restauración aislados, pérdida de proceso/host y un único consumidor Telegram.
+Medir recuperación y documentar RPO/RTO antes de prometerlos.
+
+Aceptación: pruebas de reinicio/duplicados concurrentes, corte de red y recuperación,
+más Compose ejecutado localmente y restauración comprobada. Sigue pendiente;
+no se introduce DB o Compose para anticiparla durante Fase 1D. Esta entrega es
+requisito previo a AWS con efectos sensibles, no autorización de despliegue.
+Lightsail permanece como proveedor principal previsto; presupuesto, créditos,
+región y recursos exactos requieren revisión y aprobación separadas.
+
 ## Fase 2 — primer agente real externo
 
 Elegir un agente, comprobar que funciona por sí solo, sus términos de privacidad,
 permisos, compatibilidad y presupuesto. Finance Agent es candidato, no módulo de
 Jarvis ni dependencia obligatoria. Ninguna integración paga se activa por defecto.
 La aceptación pertenece a ambos proyectos y sus fuentes de verdad.
+Antes de permitir efectos sensibles, completar la recuperación durable de Fase 1E
+y las confirmaciones/idempotencia propias del agente externo.
 
 ## Fase 3 — eventos, notificaciones y autonomía
 
-Dispatcher, autenticación/replay, inbox/outbox durable, consentimiento revocable,
+Sobre la base durable de Fase 1E: Dispatcher, autenticación/replay, inbox/outbox
+durable, consentimiento revocable,
 correlación de operaciones pendientes y deduplicación antes de efectos. Elegir y
 probar persistencia mínima, recuperación y límites. Autonomía/scheduler en el
 agente; Jarvis centraliza solo notificaciones permitidas y estados necesarios.
@@ -103,6 +152,8 @@ reinicio y métricas; luego dimensionar según consumo. AWS/Lightsail es la prop
 principal; EC2/Lambda y DigitalOcean/Cloud Run son alternativas documentadas,
 sin recursos contratados. Revisar costos y solicitar
 autorización concreta antes de cualquier contratación o activación de facturación.
+La preparación local empieza en Fase 1E; esta fase exige además validar el entorno
+objetivo y una autorización concreta, sin saltar recuperación o controles de costo.
 
 ## Fase 6 — web y funciones adicionales
 

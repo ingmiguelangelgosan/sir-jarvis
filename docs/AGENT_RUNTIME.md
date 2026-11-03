@@ -1,8 +1,9 @@
-# Registry y Gateway — Fases 1B y 1C
+# Registry y Gateway — Fases 1B, 1C y 1D
 
 Registry/Gateway funcionales en memoria con transporte falso o HTTPS inyectado.
-HTTPS se verifica contra un proceso de testing independiente; no hay agentes de
-dominio, integración nueva con Telegram, DB ni IA.
+HTTPS se verifica contra un proceso de testing independiente. Fase 1D conecta
+Telegram al Core/Gateway mediante comandos opcionales de lectura; no hay agentes
+de dominio, DB ni IA. La integración está deshabilitada por defecto.
 El contrato de mensajes sigue siendo [protocolo 1.0](AGENT_PROTOCOL.md).
 
 ## Demo sin credenciales
@@ -49,8 +50,8 @@ comandos Telegram conservan su comportamiento anterior.
    validado al [puerto de transporte](../src/agents/transport.ts), sin conexiones
    ni referencias de secretos. Fase 1C puede inyectar el adaptador HTTPS.
 
-No existe un adaptador Telegram que convierta texto en estas solicitudes; no se
-añaden comandos ficticios al bot. Los alias de sujeto son contexto interno, no
+Fase 1D adapta `/agents` y `/agent` de Telegram a un caso de uso determinista de
+lectura, sin cambiar `/start` o `/status`. Los alias de sujeto son contexto interno, no
 IDs de Telegram. Configuración, schemas y transporte son código local de confianza;
 resultados y solicitudes son datos no confiables.
 
@@ -69,7 +70,8 @@ no se conservan excepciones, cuerpos o URLs en errores. No hay logs de payloads.
 
 La URL configurada es un origen HTTPS sin ruta, query, fragmento o credenciales,
 presente en la lista permitida. El transporte HTTPS añade validación DNS/IP,
-TLS y autenticación descritas abajo, sin cambiar el Gateway ni conectar Telegram.
+TLS y autenticación descritas abajo. El Gateway conserva sus garantías al ser
+invocado desde la nueva integración opcional de Telegram.
 
 ## Idempotencia y concurrencia
 
@@ -147,6 +149,90 @@ no satisface retención durable, idempotencia de dominio ni exactamente-una-vez.
 Se aplican [PRODUCT_RULES](PRODUCT_RULES.md) ORC-01/02/03/04/05/06/07/08/12.
 Los datos y reglas de agentes siguen fuera de Jarvis. Eventos autenticados,
 replay y persistencia durable esperan Fase 3.
+
+## Integración opcional de Telegram de Fase 1D
+
+El flujo conectado es Telegram autenticado → comandos deterministas →
+[AgentReadService](../src/app/agent-read.ts) →
+[AgentExecutionService](../src/app/agent-execution.ts) → Registry/Gateway →
+`HttpsAgentTransport` → agente independiente → respuesta de Telegram.
+[Guía operativa y prueba manual](TELEGRAM.md#prueba-manual-con-telegram-real-y-echo-local).
+No se crea otro Gateway ni un servicio de agente dentro del Core.
+
+`telegram-main.ts` instala la integración solo con
+`JARVIS_TELEGRAM_AGENTS_ENABLED=true`; sin ella no lee configuración de agentes y
+conserva el comportamiento anterior. Un registro vacío también es válido. Cuando
+está activa, el JSON local administrado configura instalación, bindings Telegram
+→ `subject_ref`, registros, permisos, orígenes, referencias de variables y retención.
+La [plantilla](../config/agents.example.json) usa datos ficticios, agente apagado y
+destino `.invalid`. Configuración privada en `.local/`, excluida de Git.
+
+El handler existente autentica persona de allowlist y chat privado antes de la
+adaptación; los bindings internos solo aceptan IDs ya permitidos y aliases únicos
+no numéricos. Un mensaje nunca proporciona el actor, registra agentes o amplía
+permisos. `/agents` presenta solo agente/capacidad/versión autorizados, habilitados,
+disponibles y soportados por este corte; no envía solicitudes al agente ni revela
+URLs, referencias, descripciones libres o secretos.
+
+`/agent <agente> <capacidad> <texto>` solo permite `echo.reply` 1.0 de lectura con
+schemas locales `demo.input.v1`/`demo.output.v1`. No habilita automáticamente otras
+capacidades de lectura registradas. Valida texto simple de 1 a 128 unidades de
+cadena, sin caracteres de control o formato invisibles; no interpreta campos de configuración.
+No hay interpretación de lenguaje natural. Core y Gateway comprueban de nuevo
+instancia, sujeto y permisos; siempre se envía `cost_policy: no-paid-services`.
+Se muestran únicamente salidas válidas que reflejen exactamente el input aprobado
+de Echo. Pending y fallos se convierten en mensajes locales breves, sin IDs técnicos;
+pending no inicia polling automático o notificaciones. Timeout no confirma fallo
+remoto ni permite repetir a ciegas.
+
+La clave privada `JARVIS_TELEGRAM_AGENT_KEY`, distinta de Bearer y token Telegram,
+deriva IDs opacos HMAC por bot autenticado, instalación, sujeto y chat/mensaje.
+No se envían IDs Telegram al agente. No se incluyen datos del comando en la clave
+de la acción. El handler no vuelve a procesar el mismo chat/mensaje; dentro del
+mismo scope de agente/capacidad, cambiar el comando conservando la clave produce
+conflicto del Gateway.
+La clave debe permanecer estable entre arranques; cambiarla, o cambiar instalación/
+binding, cambia el namespace y requiere revisar pendientes. El polling suministra
+el ID del bot; un adaptador directo que no lo proporcione usa username y debe
+mantenerlo estable. La clave no representa persistencia de reservas o resultados.
+
+El adaptador reserva hasta 1024 acciones de agentes por handler antes del primer
+`await`, sin expulsar las activas o inciertas; lleno falla cerrado con un código
+de log fijo. Mantiene separado el cache legacy de 1024 mensajes. Admite hasta ocho
+invocaciones de lectura simultáneas y una cola acotada de 32 respuestas; los envíos
+se serializan y comparten ritmo/cooldown de Telegram. Un 429 de entrega reintenta
+solo el envío, nunca vuelve a invocar al agente. El Gateway conserva sus propias
+reservas de 256 y retención de outputs explícita. Todos son límites en memoria,
+sin garantía exactamente-una-vez tras reinicio.
+
+```sh
+npm run agents:telegram:demo
+node --test tests/telegram-agents.e2e.test.ts
+```
+
+La demo automática usa Telegram simulado y Echo HTTPS real como otro proceso,
+sin token propio, `.env`, llamadas públicas o cargos:
+
+```json
+{
+  "mode": "telegram-simulated-https-local",
+  "status": "completed",
+  "executions": 1,
+  "replies": 1
+}
+```
+
+`npm run telegram:agents:demo` es un supervisor **manual** separado, fuera de CI
+y del build, para usar el bot real con exactamente un propietario autorizado.
+Genera CA, Bearer, clave HMAC y registro temporales en memoria; requiere integración
+explícita y entorno development/test. Solo ese supervisor de testing inyecta la
+política loopback exacta; el bot normal mantiene la política HTTPS de Fase 1C.
+La aceptación nueva con Telegram real está pendiente del operador, no se infiere
+del éxito de la prueba simulada. Ver [validación](PHASE_1D_VALIDATION.md).
+
+Antes de desplegar con efectos sensibles, Fase 1E debe resolver persistencia
+durable, Compose y recuperación locales; siguen pendientes y no se añaden aquí.
+AWS/Lightsail permanece como proveedor previsto, sin despliegue ni facturación.
 
 ## Transporte HTTPS de Fase 1C
 

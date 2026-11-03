@@ -80,12 +80,26 @@ Mantener tests de cancelación, deadlines, TTL y resultado incierto; no sustitui
 por pruebas solo secuenciales. La memoria no es idempotencia durable o de dominio.
 No crear carpetas vacías, DB, colas, microservicios internos ni una librería
 publicada prematura. Fase 1C incorpora HTTPS/JSON validado con un fixture
-independiente entre procesos; no está conectado al bot. La política productiva
+independiente entre procesos. Fase 1D lo conecta al bot de forma opcional:
+comandos deterministas `/agents` y `/agent`, deshabilitados por defecto, bindings
+de sujeto administrados en servidor y capacidades de lectura `echo.reply` 1.0.
+No añadir escritura, pagos o interpretación libre de texto a este flujo.
+Conservar pruebas completas Telegram simulado → Core → Gateway → Echo HTTPS
+independiente → Telegram simulado; probar piezas aisladas no basta.
+La política productiva
 niega loopback/link-local/metadata y valida DNS/IP en cada conexión. Excepciones
 de loopback solo en tests, excluidas del build, con CA temporal y TLS verificado.
 MCP es futuro. AWS/Lightsail es la estrategia principal documentada, sin despliegue
 ni acceso a la cuenta. Ver [plan AWS](AWS_DEPLOYMENT_PLAN.md); los créditos no
 autorizan gastos.
+
+La configuración privada de agentes vive fuera de Git, por ejemplo `.local/`.
+No usar IDs de Telegram como `subject_ref`, no derivar actores de parámetros ni
+enviar IDs o secretos al agente. Clave HMAC estable y Bearer separados; la clave
+deriva IDs opacos por acción, sin texto del comando. Reservas/offset en memoria
+no sobreviven a reinicios. Antes de efectos sensibles o despliegue AWS, Fase 1E
+debe implementar persistencia durable, Compose y recuperación **locales**, con
+sus pruebas; nada de ello existe por incluirlo en el roadmap.
 
 ## Trabajo y verificación
 

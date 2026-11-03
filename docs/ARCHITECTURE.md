@@ -8,23 +8,26 @@ o repositorio en esta fase.
 
 ## Estado verificable
 
-| Componente                                  | Estado                                                                |
-| ------------------------------------------- | --------------------------------------------------------------------- |
-| Bootstrap, configuración y diagnóstico      | Implementados y probados                                              |
-| Channel Layer: Telegram texto               | Implementada; aceptación real reportada por el operador el 2026-11-02 |
-| Core: respuestas /start, /status y fallback | Implementado, determinista y sin enrutamiento externo                 |
-| Agent Registry / Agent Gateway              | Memoria, validación, fake y transporte HTTPS de Fase 1C               |
-| Event Dispatcher                            | Diseño; sin endpoint externo ni inbox durable                         |
-| AI Gateway                                  | Diseñado; proveedores deshabilitados                                  |
-| Persistence Layer                           | Diseñada; sin nueva DB                                                |
-| Agentes externos                            | Fixture HTTPS independiente en testing; sin agentes de dominio        |
+| Componente                                  | Estado                                                                   |
+| ------------------------------------------- | ------------------------------------------------------------------------ |
+| Bootstrap, configuración y diagnóstico      | Implementados y probados                                                 |
+| Channel Layer: Telegram texto               | Implementada; aceptación real reportada por el operador el 2026-11-02    |
+| Core: respuestas /start, /status y fallback | Implementado; se conservan los textos previos                            |
+| Telegram → Core → Gateway                   | Fase 1D opcional, comandos deterministas de lectura; apagada por defecto |
+| Agent Registry / Agent Gateway              | Memoria, validación, fake y transporte HTTPS de Fase 1C                  |
+| Event Dispatcher                            | Diseño; sin endpoint externo ni inbox durable                            |
+| AI Gateway                                  | Diseñado; proveedores deshabilitados                                     |
+| Persistence Layer                           | Diseñada; sin nueva DB                                                   |
+| Agentes externos                            | Fixture HTTPS independiente en testing; sin agentes de dominio           |
 
-El comportamiento y las respuestas actuales de Telegram se conservan, incluso
-su texto de Fase 1A. El diagnóstico sigue describiendo el último corte funcional
-y no afirma que el orquestador ya pueda invocar agentes.
+Las respuestas de `/start`, `/status` y el fallback se conservan, incluso su texto
+de Fase 1A. El diagnóstico sigue siendo local y no prueba conectividad del bot.
 El caso de uso programático `AgentExecutionService` y `agents:demo` demuestran
 autorización y ejecución simulada por separado. `agents:https:demo` verifica el
-transporte real entre procesos en testing. No se conecta esta API al bot.
+transporte real entre procesos en testing. Fase 1D conecta el adaptador Telegram a
+esos componentes por habilitación explícita. `agents:telegram:demo` prueba el flujo
+completo con Telegram simulado y Echo HTTPS independiente; el nuevo uso del bot
+real queda para la [aceptación manual](TELEGRAM.md#prueba-manual-con-telegram-real-y-echo-local).
 
 ## Diagrama objetivo
 
@@ -137,9 +140,29 @@ de dominio desplegado. Una eventual librería compartida o schema publicable
 se evaluará después de probar compatibilidad entre lenguajes; el protocolo no
 obliga a importar el código de Jarvis.
 
+Fase 1D añade [AgentReadService](../src/app/agent-read.ts) como caso de uso
+determinista sobre `AgentExecutionService`, sin cambiar el Gateway.
+[telegram-agents.ts](../src/app/telegram-agents.ts) compone registro, schemas,
+transporte y permisos desde configuración local estricta, con integración apagada
+por defecto. El adaptador Telegram autentica allowlist/chat privado y resuelve el
+sujeto por binding interno, nunca por parámetros; deriva IDs opacos con HMAC sin
+enviar IDs Telegram. `/agents` solo expone referencias autorizadas y soportadas;
+`/agent` limita el corte a `echo.reply` 1.0 de lectura y perfil sin pago. Salidas,
+errores, pendientes y timeout pasan por presentación controlada. No crea agentes
+de dominio, escritura, DB o nueva infraestructura.
+
+La reserva de mensajes de agentes precede a cualquier espera y no expulsa acciones
+inciertas para admitir otras. Envía respuestas secuencialmente, acotadas y con
+los límites Telegram existentes; retries de entrega no reejecutan el Core.
+Todo el estado sigue en memoria. El supervisor de demo con bot real vive solo
+en tests, con Echo separado y TLS válido; su excepción loopback no se compila ni
+se habilita por variables en el bot normal. [Detalle y límites](AGENT_RUNTIME.md#integración-opcional-de-telegram-de-fase-1d).
+
 ## Persistencia, auditoría y fallos futuros
 
-Elegir almacenamiento por consumo y consistencia requeridos antes de Fase 3.
+Fase 1E elegirá almacenamiento mínimo según consumo y consistencia para persistir
+estados y deduplicación, junto con Docker Compose y recuperación **local**.
+Es requisito previo al despliegue AWS con efectos sensibles; no está implementada.
 Puede evaluarse SQLite para una instancia o PostgreSQL si se justifican concurrencia
 y operación; no se añade ninguno ahora. Las bases y migraciones internas de cada
 agente son su responsabilidad, incluso si se alojan en el mismo proveedor.

@@ -17,7 +17,7 @@ export class EnvironmentAgentCredentials implements AgentCredentialResolver {
   ) {
     try {
       const entries = Object.entries(mapping);
-      if (!entries.length || entries.length > 256) throw new Error();
+      if (entries.length > 256) throw new Error();
       for (const [reference, variable] of entries) {
         identifierSchema.parse(reference);
         if (!/^[A-Z][A-Z0-9_]{0,127}$/.test(variable)) throw new Error();

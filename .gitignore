@@ -4,6 +4,7 @@ dist/
 coverage/
 .npm-cache/
 .tools/
+.local/
 *.tsbuildinfo
 
 # Credenciales y archivos privados; solo se versiona el ejemplo

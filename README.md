@@ -8,7 +8,10 @@ independientes mediante una interfaz conversacional.
 fue reportada como exitosa por el operador el 2026-11-02. Fase 1B implementa
 Registry/Gateway en memoria, validación y autorización. Fase 1C añade transporte
 HTTPS real, verificado contra un proceso de prueba independiente. No hay agentes
-de dominio conectados, IA, despliegue ni persistencia durable.
+de dominio conectados, IA, despliegue ni persistencia durable. Fase 1D conecta
+Telegram con el Core y ese Gateway mediante comandos opcionales de lectura,
+deshabilitados por defecto; el recorrido completo se prueba con Telegram simulado
+y Echo HTTPS independiente. La nueva aceptación con Telegram real queda para el operador.
 La licencia definitiva sigue pendiente.
 
 Jarvis centraliza permisos, conversaciones, coordinación y notificaciones.
@@ -28,7 +31,7 @@ un agente o por este diseño.
 - [Telegram](docs/TELEGRAM.md)
 - [Finance Agent independiente](docs/agents/FINANCE_AGENT_SPEC.md)
 - [Trazabilidad financiera](docs/agents/FINANCE_AGENT_TRACEABILITY.md)
-- [Validación de Fase 1C](docs/PHASE_1C_VALIDATION.md)
+- [Validación de Fase 1D](docs/PHASE_1D_VALIDATION.md)
 - [Git, protección de main y PR](docs/GIT_WORKFLOW.md)
 
 Para colaborar con Codex, consulta [AGENTS.md](AGENTS.md).
@@ -37,10 +40,13 @@ Con Node 24.22.1+ de la rama 24, desde la raíz:
 
 ```sh
 npm ci
-npm run agents:https:demo
+npm run agents:telegram:demo
 ```
 
-Arranca un agente HTTPS independiente temporal, ejecuta `echo.reply` desde el Core
-y cierra ambos lados. No requiere credenciales propias ni usa infraestructura pública.
-Telegram conserva su comportamiento. AWS/Lightsail es la estrategia principal;
+Simula Telegram, recorre Core → Gateway → Echo HTTPS independiente y comprueba
+la respuesta antes de cerrar. No requiere credenciales ni infraestructura pública.
+Para probar `/agents` y `/agent demo.echo echo.reply Hola Jarvis` con tu bot real,
+sigue la [guía manual](docs/TELEGRAM.md#prueba-manual-con-telegram-real-y-echo-local).
+`/start`, `/status` y el comportamiento sin integración se conservan.
+AWS/Lightsail es la estrategia principal;
 el saldo, la elegibilidad y el vencimiento de créditos siguen sin verificar.

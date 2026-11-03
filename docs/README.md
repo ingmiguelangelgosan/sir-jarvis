@@ -30,7 +30,11 @@ Fase 0 y Telegram de Fase 1A implementados y fusionados. El operador reportó
 aceptación real exitosa el 2026-11-02; los tests automatizados usan Telegram
 simulado. Fase 1B aporta Registry/Gateway en memoria, validadores y un caso de uso
 autorizado con transporte falso, sin cambiar respuestas o flujos del bot. Fase 1C
-añade transporte HTTPS real contra un fixture independiente temporal. No hay
+añade transporte HTTPS real contra un fixture independiente temporal. Fase 1D
+conecta el adaptador Telegram al Core y Gateway con `/agents` y `/agent`, solo
+para lectura autorizada y mediante habilitación explícita. El recorrido completo
+usa Telegram simulado y Echo real entre procesos; la aceptación del nuevo flujo
+con el bot real corresponde al operador. No hay
 agentes de dominio, eventos durables, IA ni persistencia. AWS/Lightsail es la
 estrategia principal documentada; no se contrataron servicios ni accedió a la cuenta.
 
@@ -81,31 +85,50 @@ ejecuta `echo.reply` desde el Core y limpia procesos. Devuelve
 La excepción de loopback existe únicamente en tests, fuera del build;
 TLS y hostname se comprueban. [Guía HTTPS](AGENT_RUNTIME.md#transporte-https-de-fase-1c).
 
+Para probar el flujo conversacional completo sin token ni llamadas a Telegram:
+
+```sh
+npm run agents:telegram:demo
+```
+
+Telegram simulado → Core → Gateway → Echo HTTPS independiente → respuesta de
+Telegram simulada. Resultado:
+`{"mode":"telegram-simulated-https-local","status":"completed","executions":1,"replies":1}`.
+La guía para repetirlo con el bot propio está en
+[Telegram real y Echo local](TELEGRAM.md#prueba-manual-con-telegram-real-y-echo-local).
+
 ## Telegram y configuración
 
 Para el bot propio sigue [TELEGRAM.md](TELEGRAM.md), incluida la configuración en
 BotFather. Conserva tu `.env` existente; copia [.env.example](../.env.example) solo
 si no existe. El entorno del proceso prevalece sobre el archivo local.
 
-| Variable                    | Uso                                                    |
-| --------------------------- | ------------------------------------------------------ |
-| `NODE_ENV`                  | development/test/production; default development       |
-| `JARVIS_TIMEZONE`           | Zona válida para Node/Intl; default America/Bogota     |
-| `JARVIS_AI_MODE`            | Solo disabled                                          |
-| `TELEGRAM_BOT_TOKEN`        | Requerida únicamente al iniciar Telegram; token propio |
-| `TELEGRAM_ALLOWED_USER_IDS` | Requerida para Telegram; IDs numéricos explícitos      |
+| Variable                         | Uso                                                                          |
+| -------------------------------- | ---------------------------------------------------------------------------- |
+| `NODE_ENV`                       | development/test/production; default development                             |
+| `JARVIS_TIMEZONE`                | Zona válida para Node/Intl; default America/Bogota                           |
+| `JARVIS_AI_MODE`                 | Solo disabled                                                                |
+| `TELEGRAM_BOT_TOKEN`             | Requerida únicamente al iniciar Telegram; token propio                       |
+| `TELEGRAM_ALLOWED_USER_IDS`      | Requerida para Telegram; IDs numéricos explícitos                            |
+| `JARVIS_TELEGRAM_AGENTS_ENABLED` | `false` por defecto; habilita comandos de lectura con `true`                 |
+| `JARVIS_AGENTS_CONFIG_FILE`      | Solo con integración activa; JSON privado administrado localmente            |
+| `JARVIS_TELEGRAM_AGENT_KEY`      | Solo con integración activa; clave HMAC propia y estable, distinta de tokens |
 
 ```sh
 npm run telegram
 ```
 
-Alternativa compilada: `npm run build` y `npm run telegram:start`. Solo esos
-comandos se conectan a Telegram. No cambian tu bot, webhook ni preferencias.
+Alternativa compilada: `npm run build` y `npm run telegram:start`. Esos comandos
+y la demo manual explícita `telegram:agents:demo` se conectan a Telegram.
+No cambian tu bot, webhook ni preferencias.
 Ctrl+C cancela peticiones y esperas. El diagnóstico no requiere credenciales.
 
-La demo HTTPS no necesita variables nuevas. Una composición servidor aprobada
-puede mapear explícitamente referencias de credenciales a variables propias;
-ver [resolver server-only](AGENT_RUNTIME.md#transporte-https-de-fase-1c).
+Las demos automáticas no necesitan variables nuevas. El bot inicia sin agentes
+cuando la integración está apagada; `/agents` y `/agent` conservan entonces el
+fallback anterior. Para activarla, configurar bindings internos, agentes, permisos,
+orígenes y referencias de credenciales según [TELEGRAM](TELEGRAM.md#configuración-administrada-de-agentes).
+La plantilla [agents.example.json](../config/agents.example.json) no contiene
+credenciales ni un destino activo. El perfil sigue siendo `no-paid-services`.
 No publiques tokens, comprobantes ni datos financieros en logs/commits. La
 autorización sigue limitada a chats privados de los IDs permitidos; una allowlist
 plural no implementa aislamiento multiusuario.
@@ -133,18 +156,20 @@ HTTPS se verifica contra un proceso ficticio, sin DB nueva, MCP o cola distribui
 
 ## Herramientas y evidencia
 
-| Comando                                       | Resultado esperado                                         |
-| --------------------------------------------- | ---------------------------------------------------------- |
-| `npm run dev` / `npm run diagnose`            | Diagnóstico desde TS                                       |
-| `npm run build` / `npm start`                 | Compilar / ejecutar diagnóstico JS                         |
-| `npm run telegram` / `npm run telegram:start` | Bot TS / compilado con configuración propia                |
-| `npm run agents:demo`                         | Demostración local con transporte falso y sin credenciales |
-| `npm run agents:https:demo`                   | HTTPS real con proceso ficticio temporal, sin red pública  |
-| `npm run format` / `npm run format:check`     | Aplicar / comprobar formato                                |
-| `npm run lint` / `npm run typecheck`          | Lint y tipos, incluidos contratos estáticos                |
-| `npm test`                                    | Tests sin APIs reales ni claves                            |
-| `npm run check`                               | Formato, lint, tipos, tests y build                        |
-| `npm audit`                                   | Consulta de vulnerabilidades conocidas                     |
+| Comando                                       | Resultado esperado                                          |
+| --------------------------------------------- | ----------------------------------------------------------- |
+| `npm run dev` / `npm run diagnose`            | Diagnóstico desde TS                                        |
+| `npm run build` / `npm start`                 | Compilar / ejecutar diagnóstico JS                          |
+| `npm run telegram` / `npm run telegram:start` | Bot TS / compilado con configuración propia                 |
+| `npm run agents:demo`                         | Demostración local con transporte falso y sin credenciales  |
+| `npm run agents:https:demo`                   | HTTPS real con proceso ficticio temporal, sin red pública   |
+| `npm run agents:telegram:demo`                | Recorrido completo con Telegram simulado y Echo HTTPS local |
+| `npm run telegram:agents:demo`                | Prueba manual explícita con bot propio y Echo temporal      |
+| `npm run format` / `npm run format:check`     | Aplicar / comprobar formato                                 |
+| `npm run lint` / `npm run typecheck`          | Lint y tipos, incluidos contratos estáticos                 |
+| `npm test`                                    | Tests sin APIs reales ni claves                             |
+| `npm run check`                               | Formato, lint, tipos, tests y build                         |
+| `npm audit`                                   | Consulta de vulnerabilidades conocidas                      |
 
 ESLint, TypeScript, Prettier y Zod conservan las versiones del lockfile. La caché
 local y `ignore-scripts` de [.npmrc](../.npmrc) permanecen. Snapshot y bloque
@@ -156,6 +181,7 @@ los tests verifican hash e inclusión íntegra.
 - [Verificación de Fase 1A.5](PHASE_1A5_VALIDATION.md), registro histórico de arquitectura.
 - [Verificación de Fase 1B](PHASE_1B_VALIDATION.md), registro del Gateway en memoria.
 - [Verificación de Fase 1C](PHASE_1C_VALIDATION.md), HTTPS real local y pruebas.
+- [Verificación de Fase 1D](PHASE_1D_VALIDATION.md), integración conversacional opcional.
 - [Plan AWS](AWS_DEPLOYMENT_PLAN.md), costos, créditos y preparación sin desplegar.
 - [Instrucciones Codex](AGENTS.md) y [flujo de Git](GIT_WORKFLOW.md).
 - [Prompt de Fase 1B](prompts/PHASE_1B_PROMPT.md).
