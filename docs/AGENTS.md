@@ -114,6 +114,15 @@ copia íntegra no prueba ausencia de efectos posteriores. No eludir ese bloqueo,
 recrear historia o prometer exactly-once. Los locks locales requieren directorio
 compartido por instalación; no son exclusión distribuida.
 
+Fase 1F prepara el piloto sin contratarlo: consultar
+[runbook](AWS_PILOT_RUNBOOK.md), [checklist](AWS_PILOT_CHECKLIST.md) y
+[validación](PHASE_1F_VALIDATION.md). `deploy/compose.pilot.yaml` es independiente
+de la demo y mantiene agentes apagados; su preflight exige imagen local por ID.
+Ni ese comando ni el plan conceden autorización AWS. Egreso/SSH/Ubuntu, créditos
+y backup externo requieren revisión y pruebas reales autorizadas. No acceder a
+Billing o credenciales AWS por disponer de herramientas. El heartbeat no prueba
+conectividad Telegram y, sin agentes, los diagnósticos conservan dedup en memoria.
+
 ## Trabajo y verificación
 
 - Explicar alcance, riesgos, dependencias y pruebas antes de cambios no triviales.

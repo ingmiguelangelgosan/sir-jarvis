@@ -15,10 +15,14 @@ generar cargos de bolsillo cuando el crédito no cubre el consumo.
 
 El [plan operativo AWS](AWS_DEPLOYMENT_PLAN.md) contiene los requisitos de cuenta,
 región, seguridad, presupuesto, recuperación, migración y autorización previa.
+Fase 1F añade el [runbook del piloto](AWS_PILOT_RUNBOOK.md) y su
+[checklist de autorización](AWS_PILOT_CHECKLIST.md), sin crear recursos. La
+operación local validada de Fase 1E.2 es la base; su validación no equivale a
+ejecutar el piloto en AWS.
 
 ## Capacidad y precios de referencia
 
-Referencia pública consultada el **2026-11-02**, Linux/Unix de propósito general
+Referencia pública consultada el **2026-11-03**, Linux/Unix de propósito general
 con IPv4 pública. No se aplica una promoción ni se infiere disponibilidad regional:
 
 | Uso propuesto                               | RAM  | vCPU | SSD   | Referencia base mensual |
@@ -31,20 +35,30 @@ condiciones dependen de región; confirmar plan, moneda, impuestos y tarifa en l
 cotización final. [Precios oficiales](https://aws.amazon.com/lightsail/pricing/) y
 [especificaciones de bundles](https://docs.aws.amazon.com/lightsail/latest/userguide/amazon-lightsail-bundles.html).
 
+El piloto propone Ubuntu 24.04 LTS, disponible y soportado en la región
+seleccionada; comprobar el blueprint antes de contratar. Jarvis usa long polling,
+sin puerto HTTP público del Gateway, balanceador ni DB administrada. El bundle
+de 2 GB es una hipótesis a medir, no capacidad certificada. La referencia local
+de Fase 1E.2 fue Jarvis 27,98 MiB y Echo 15,13 MiB en un snapshot de prueba;
+no contempla toda la carga ni demuestra suficiencia del host AWS.
+[Ciclo Ubuntu](https://ubuntu.com/about/release-cycle),
+[mediciones y límites](PHASE_1E2_VALIDATION.md).
+
 ## Proyección ilustrativa de seis meses
 
 | Periodo                             | Hipótesis de VPS                                                 | Bruto base del periodo |
 | ----------------------------------- | ---------------------------------------------------------------- | ---------------------- |
 | Meses 1–2                           | 2 GB, USD 12/mes                                                 | USD 24                 |
 | Meses 3–4                           | 2 GB, USD 12/mes                                                 | USD 24                 |
-| Meses 5–6                           | Evaluar 4 GB; escenario de USD 24/mes                            | USD 48                 |
-| Total VPS del escenario             | Cuatro meses a 12 y dos a 24                                     | **USD 96**             |
-| Margen de planificación para extras | Backups, transferencia, almacenamiento, impuestos y contingencia | **USD 54**             |
+| Meses 5–6                           | Mantener 2 GB si las métricas lo permiten, USD 12/mes            | USD 24                 |
+| Total VPS del escenario             | Seis meses a 12                                                  | **USD 72**             |
+| Margen de planificación para extras | Backups, transferencia, almacenamiento, impuestos y contingencia | **USD 78**             |
 | Presupuesto total de planificación  | VPS más margen, sin contratación                                 | **USD 150**            |
 | Reserva nominal fuera del plan      | 200 nominales menos 150 planificados                             | **USD 50**             |
 
-Subir a 4 GB no está programado: exige mediciones y aprobación. Si se mantienen
-2 GB los seis meses, el VPS base sería USD 72. Los USD 54 son margen, no una
+El escenario anterior de Fase 1C incluía dos meses hipotéticos a 4 GB; se sustituye
+por un piloto de 2 GB sin ampliación programada para respetar el control mensual.
+Subir a 4 GB exige mediciones y aprobación. Los USD 78 son margen, no una
 cotización ni capacidad de crédito confirmada. APIs de IA y otros consumos de
 agentes no están autorizados por este plan.
 
@@ -100,6 +114,13 @@ representativo; optimizar o separar un agente pesado antes de ampliar todo el ho
 
 ## Control financiero propuesto
 
+Distribución mensual propuesta dentro de USD 25 brutos: VPS **12**, snapshots
+opcionales **hasta 3**, copias externas **hasta 2** y margen para cargos
+adicionales/impuestos **8**. Los tres últimos son reservas de planificación,
+no recursos contratados ni topes automáticos del proveedor. Cotizar el conjunto
+completo; si no cabe, detener y revisar. No activar un servicio solo porque
+quepa en una reserva. Ver [costos y backups externos](AWS_DEPLOYMENT_PLAN.md).
+
 Preparar, tras autorización futura, un presupuesto mensual **bruto de USD 25**
 con alertas reales al 50%, 80% y 100%, y previsión superior al 100%. Excluir créditos
 y reembolsos del cálculo bruto para que no oculten consumo. Revisar por separado
@@ -138,5 +159,12 @@ Backups cifrados y recuperación local se detallan en
 idempotencia de negocio ni detección completa de rollback. Toda restauración queda
 bloqueada hasta conciliar y autorizar tráfico. Las mediciones locales no acreditan
 capacidad suficiente para Lightsail de 2 GB ni RPO/RTO de una pérdida del host AWS.
+
+La copia externa propuesta es un bucket B2 privado independiente; S3 Standard
+privado es la alternativa AWS. La comparación, costos, credenciales separadas,
+retención protegida y procedimiento manual están en
+[AWS_DEPLOYMENT_PLAN](AWS_DEPLOYMENT_PLAN.md#copia-externa-propuesta). Ninguno
+está configurado o contratado. No hace falta añadir SDK AWS al Core ni un
+uploader a Jarvis para conservar el formato `.jvb` portable.
 
 Esta decisión aplica [PRODUCT_RULES](PRODUCT_RULES.md) ORC-01/03/04/06/07/08/11/12.
