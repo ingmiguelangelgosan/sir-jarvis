@@ -1,9 +1,15 @@
 import { closeSync, openSync, readSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { dirname, resolve } from 'node:path';
 import { z } from 'zod';
 
 import { EnvironmentAgentCredentials } from '../agents/credentials.ts';
 import { InMemoryAgentGateway } from '../agents/gateway.ts';
+import { DurableAgentGateway } from '../agents/durable-gateway.ts';
+import { canonicalJson } from '../agents/json.ts';
+import type { DurableStateStore } from '../agents/state-store.ts';
+import { SqliteStateStore } from '../infrastructure/sqlite-state-store.ts';
+import { createDurableTelegramJournal } from '../channels/telegram/durable-actions.ts';
 import { HttpsAgentTransport } from '../agents/https-transport.ts';
 import { jsonObjectSnapshot } from '../agents/json.ts';
 import {
@@ -150,6 +156,7 @@ export function createTelegramAgentIntegration(
     readonly network?: AgentNetworkPolicy;
     readonly ca?: string;
     readonly timeoutMs?: number;
+    readonly store?: DurableStateStore;
   } = {},
 ) {
   try {
@@ -205,9 +212,34 @@ export function createTelegramAgentIntegration(
           : { timeoutMs: dependencies.timeoutMs }),
       },
     );
-    const gateway = new InMemoryAgentGateway(registry, catalog, transport, {
-      resultCacheMs: config.result_cache_ms,
-    });
+    const store = dependencies.store;
+    if (store)
+      store.bind(
+        'installation',
+        createHash('sha256')
+          .update(
+            canonicalJson({
+              key_fingerprint: createHash('sha256')
+                .update(actionKey)
+                .digest('hex'),
+              instance_id: config.instance_id,
+              subjects: config.subjects,
+            }),
+          )
+          .digest('hex'),
+      );
+    const gateway = store
+      ? new DurableAgentGateway(
+          registry,
+          catalog,
+          transport,
+          store,
+          actionKey,
+          { resultCacheMs: config.result_cache_ms },
+        )
+      : new InMemoryAgentGateway(registry, catalog, transport, {
+          resultCacheMs: config.result_cache_ms,
+        });
     const reads = new AgentReadService(
       registry,
       new AgentExecutionService(registry, gateway),
@@ -220,6 +252,15 @@ export function createTelegramAgentIntegration(
     });
     return {
       commands,
+      ...(store
+        ? {
+            journal: createDurableTelegramJournal(
+              store,
+              actionKey,
+              config.instance_id,
+            ),
+          }
+        : {}),
       close() {
         gateway.close();
         transport.close();
@@ -235,6 +276,7 @@ export function loadTelegramAgentIntegration(
   allowedUserIds: readonly number[],
 ) {
   if (!telegramAgentsEnabled(environment)) return undefined;
+  let store: SqliteStateStore | undefined;
   try {
     const file = environment.JARVIS_AGENTS_CONFIG_FILE;
     const key = environment.JARVIS_TELEGRAM_AGENT_KEY;
@@ -247,13 +289,27 @@ export function loadTelegramAgentIntegration(
     const ca = config.ca_file
       ? readLocalFile(resolve(dirname(path), config.ca_file))
       : undefined;
-    return createTelegramAgentIntegration(
+    if (environment.JARVIS_STATE_FILE !== undefined) {
+      if (!environment.JARVIS_STATE_FILE.trim()) throw new Error();
+      store = new SqliteStateStore({
+        path: resolve(environment.JARVIS_STATE_FILE),
+      });
+    }
+    const integration = createTelegramAgentIntegration(
       config,
       key,
       (name) => environment[name],
-      ca === undefined ? {} : { ca },
+      { ...(ca === undefined ? {} : { ca }), ...(store ? { store } : {}) },
     );
+    return {
+      ...integration,
+      close() {
+        integration.close();
+        store?.close();
+      },
+    };
   } catch {
+    store?.close();
     throw safeFailure();
   }
 }

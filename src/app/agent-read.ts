@@ -50,6 +50,8 @@ function supported(capability: AgentCapability): boolean {
 export function agentReadError(error: unknown): string {
   if (!(error instanceof AgentGatewayError))
     return 'No pude obtener una respuesta del agente.';
+  if (error.code === 'RESULT_EXPIRED' && error.outcome === 'completed')
+    return 'La consulta ya terminó; su contenido no se conserva y no volveré a ejecutarla.';
   if (error.code === 'TIMEOUT')
     return 'Se agotó el tiempo de espera. El resultado no está confirmado; no repetiré la solicitud automáticamente.';
   if (error.code === 'CANCELLED')

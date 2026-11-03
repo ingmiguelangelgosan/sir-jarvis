@@ -50,7 +50,7 @@ export async function runTelegramPolling(
     );
     hooks.log?.('telegram-started');
     failures = 0;
-    let offset: number | undefined;
+    let offset: number | undefined = hooks.agentJournal?.offset(identity.id);
 
     while (!signal.aborted) {
       let updates;
@@ -69,6 +69,7 @@ export async function runTelegramPolling(
         if (offset !== undefined && update.update_id < offset) continue;
         await handle(update, signal);
         offset = update.update_id + 1;
+        hooks.agentJournal?.advance(identity.id, offset);
       }
       if (updates.length === 0) await pause(100, signal);
     }

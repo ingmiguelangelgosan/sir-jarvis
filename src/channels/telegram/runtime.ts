@@ -1,5 +1,6 @@
 import { setTimeout } from 'node:timers/promises';
 import type { TelegramAgentCommands } from './agent-commands.ts';
+import type { TelegramActionJournal } from './durable-actions.ts';
 
 export type TelegramLogEvent =
   | 'telegram-started'
@@ -16,6 +17,7 @@ export interface RuntimeHooks {
   readonly now?: () => number;
   readonly log?: (event: TelegramLogEvent) => void;
   readonly agentCommands?: TelegramAgentCommands;
+  readonly agentJournal?: TelegramActionJournal;
 }
 
 export const wait: Wait = async (milliseconds, signal) => {

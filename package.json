@@ -19,6 +19,8 @@
     "agents:https:demo": "node tests/run-agent-https-demo.ts",
     "agents:telegram:demo": "node tests/run-telegram-agents-demo.ts",
     "telegram:agents:demo": "node tests/run-telegram-agents-live.ts",
+    "state:init": "node src/app/state-main.ts init",
+    "state:compact": "node src/app/state-main.ts compact",
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/app/main.js",
     "typecheck": "tsc --noEmit",

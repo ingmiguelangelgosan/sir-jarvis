@@ -17,7 +17,7 @@ o repositorio en esta fase.
 | Agent Registry / Agent Gateway              | Memoria, validación, fake y transporte HTTPS de Fase 1C                  |
 | Event Dispatcher                            | Diseño; sin endpoint externo ni inbox durable                            |
 | AI Gateway                                  | Diseñado; proveedores deshabilitados                                     |
-| Persistence Layer                           | Diseñada; sin nueva DB                                                   |
+| Persistence Layer                           | Fase 1E.1: estado mínimo opcional en SQLite WAL; sin datos de dominio    |
 | Agentes externos                            | Fixture HTTPS independiente en testing; sin agentes de dominio           |
 
 Las respuestas de `/start`, `/status` y el fallback se conservan, incluso su texto
@@ -154,18 +154,44 @@ de dominio, escritura, DB o nueva infraestructura.
 La reserva de mensajes de agentes precede a cualquier espera y no expulsa acciones
 inciertas para admitir otras. Envía respuestas secuencialmente, acotadas y con
 los límites Telegram existentes; retries de entrega no reejecutan el Core.
-Todo el estado sigue en memoria. El supervisor de demo con bot real vive solo
+Sin almacén configurado, ese estado sigue en memoria. El supervisor de demo con bot real vive solo
 en tests, con Echo separado y TLS válido; su excepción loopback no se compila ni
 se habilita por variables en el bot normal. [Detalle y límites](AGENT_RUNTIME.md#integración-opcional-de-telegram-de-fase-1d).
 
-## Persistencia, auditoría y fallos futuros
+## Persistencia, auditoría y recuperación local
 
-Fase 1E elegirá almacenamiento mínimo según consumo y consistencia para persistir
-estados y deduplicación, junto con Docker Compose y recuperación **local**.
-Es requisito previo al despliegue AWS con efectos sensibles; no está implementada.
-Puede evaluarse SQLite para una instancia o PostgreSQL si se justifican concurrencia
-y operación; no se añade ninguno ahora. Las bases y migraciones internas de cada
-agente son su responsabilidad, incluso si se alojan en el mismo proveedor.
+Fase 1E.1 añade el puerto puro [DurableStateStore](../src/agents/state-store.ts),
+un adaptador SQLite local WAL/FULL y [DurableAgentGateway](../src/agents/durable-gateway.ts)
+que conserva el motor de concurrencia/reintentos de Fase 1B. Un observador interno
+confirma estados antes de entregarlos; la reserva y marca de inicio se escriben
+antes del transporte. No cambia el contrato público de agentes o HTTPS.
+[ADR](adr/0001-durable-state-sqlite.md), [operación y límites](AGENT_RUNTIME.md#estado-durable-opcional-de-fase-1e1).
+
+La activación exige `JARVIS_STATE_FILE` y una DB inicializada explícitamente.
+El bot normal exige esa variable al activar los comandos de agentes; las demos y
+adaptadores programáticos conservan el modo memoria sin garantía durable.
+Con ella configurada no se permite degradar a memoria, recrear archivos perdidos,
+ignorar migraciones incompatibles o ejecutar red para reconstruir historia.
+El registro, permisos y secretos siguen en configuración local, fuera de la DB.
+Las bases y migraciones internas de cada agente son su responsabilidad.
+
+Se guardan claves/hash, contexto opaco, estados, referencias pending y auditoría
+mínima, no inputs/outputs completos. Claves previas inciertas bloquean ejecución.
+Los resultados completed sobreviven como estado conocido, no como output para
+reenvío. Pending recuperado conserva contexto/plazo; el transporte no recupera
+automáticamente sus consultas remotas. Una respuesta perdida no autoriza inventarla.
+
+Telegram añade un journal HMAC sin mensajes o IDs personales en claro: reserva de
+acción, resultado local preparado, entrega pendiente/iniciada, confirmada o incierta.
+La marca previa al envío evita reenviar tras una caída ambigua; cualquier acción
+existente se deduplica al reabrir aunque su respuesta no se haya entregado. El offset
+se lee al arrancar y se confirma después del handler, con namespace de bot HMAC.
+Puede perderse una respuesta; no hay outbox con payloads ni exactly-once.
+
+La compactación explícita tras al menos siete días redacta detalle terminal
+elegible y mantiene tombstones; pending e inciertos no se borran automáticamente.
+Fase 1E.2 implementará Docker Compose local, backups coherentes, restauración y
+recuperación antes de cualquier despliegue AWS con efectos sensibles.
 
 Distinguir aceptación, pendiente, completada, fallida e incierta. Registrar actor
 opaco, agente, IDs, estado y timestamps sin secretos ni contenido innecesario.

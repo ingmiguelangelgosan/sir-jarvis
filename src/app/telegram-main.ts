@@ -6,7 +6,10 @@ import { runTelegramPolling } from '../channels/telegram/polling.ts';
 import { loadEnvironment } from '../infrastructure/environment.ts';
 import { ConfigurationError, parseConfig } from './config.ts';
 import { parseTelegramConfig } from './telegram-config.ts';
-import { loadTelegramAgentIntegration } from './telegram-agents.ts';
+import {
+  loadTelegramAgentIntegration,
+  telegramAgentsEnabled,
+} from './telegram-agents.ts';
 
 const controller = new AbortController();
 const stop = () => controller.abort();
@@ -25,6 +28,13 @@ try {
     );
     parseConfig(environment); // También rechaza cualquier intento de activar IA.
     const config = parseTelegramConfig(environment);
+    if (
+      telegramAgentsEnabled(environment) &&
+      !environment.JARVIS_STATE_FILE?.trim()
+    )
+      throw new ConfigurationError(
+        'Configuración inválida de agentes Telegram. Revisa docs/TELEGRAM.md.',
+      );
     agents = loadTelegramAgentIntegration(environment, config.allowedUserIds);
     await runTelegramPolling(
       createTelegramApi(config.token),
@@ -32,7 +42,12 @@ try {
       controller.signal,
       {
         log: (event) => process.stdout.write(`${event}\n`),
-        ...(agents ? { agentCommands: agents.commands } : {}),
+        ...(agents
+          ? {
+              agentCommands: agents.commands,
+              ...(agents.journal ? { agentJournal: agents.journal } : {}),
+            }
+          : {}),
       },
     );
   }

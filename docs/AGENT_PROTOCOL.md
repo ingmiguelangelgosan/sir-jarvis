@@ -262,7 +262,8 @@ Si cae el proceso antes de enviar, recuperar la entrega pendiente; si cae durant
 un envío cuyo resultado se desconoce, marcarla incierta y no repetirla ciegamente.
 Telegram no garantiza exactamente una vez. La inbox/outbox transaccional futura
 no es una cola distribuida. Estos controles deben existir antes de abrir eventos
-a agentes reales; la deduplicación actual de Telegram en memoria no los sustituye.
+a agentes reales; ni la deduplicación Telegram en memoria ni el journal local de
+acciones de Fase 1E.1 sustituyen una inbox/outbox durable de eventos autenticados.
 
 ## 8. Evolución y alcance
 
@@ -275,7 +276,18 @@ compresión y respuestas sin campos repetidos. Un 429/503 sin envelope válido
 correlacionado no es evidencia de rechazo seguro y no habilita retries.
 `Retry-After` válido se combina con `retry_after_ms` tomando el mayor; valores
 inválidos se rechazan. Eventos públicos y tareas autónomas esperan Fase 3.
-Los contratos no están conectados al bot ni habilitan servicios comerciales.
+Fase 1D conecta el bot por habilitación explícita y solo para Echo de lectura;
+no habilita servicios comerciales. Fase 1E.1 conserva este contrato wire sin
+añadir campos o endpoints: el journal durable es una decisión interna de Jarvis.
+
+Cuando se configura el almacén local, la clave/hash del comando se reserva
+transaccionalmente antes de efectos. La recuperación no convierte una reserva
+anterior en permiso para ejecutar. Un estado terminal `completed` conocido sin output
+retenido devuelve `RESULT_EXPIRED/completed` en el puerto local; no es un nuevo
+estado o error del wire protocol. Pending recuperado conserva IDs y plazo original,
+pero no inicia GET remoto automático ni reconstruye el mapa interno HTTPS.
+Errores de almacenamiento, versiones incompatibles o DB ausente fallan cerrados.
+[Decisión](adr/0001-durable-state-sqlite.md), [límites](AGENT_RUNTIME.md#estado-durable-opcional-de-fase-1e1).
 
 MCP podrá añadirse como otro adaptador del Gateway, mapeando identidad, permisos,
 correlación, límites e idempotencia; no aporta autorización automática ni sustituye

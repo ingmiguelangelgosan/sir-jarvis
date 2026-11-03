@@ -1,9 +1,10 @@
-# Registry y Gateway — Fases 1B, 1C y 1D
+# Registry y Gateway — Fases 1B a 1E.1
 
 Registry/Gateway funcionales en memoria con transporte falso o HTTPS inyectado.
 HTTPS se verifica contra un proceso de testing independiente. Fase 1D conecta
 Telegram al Core/Gateway mediante comandos opcionales de lectura; no hay agentes
-de dominio, DB ni IA. La integración está deshabilitada por defecto.
+de dominio o IA. Fase 1E.1 añade estado durable SQLite opcional sin payloads
+completos. La integración Telegram está deshabilitada por defecto.
 El contrato de mensajes sigue siendo [protocolo 1.0](AGENT_PROTOCOL.md).
 
 ## Demo sin credenciales
@@ -143,12 +144,14 @@ contenido eliminado, sin reejecutar. La lectura de caché vuelve a validar permi
 Las claves/metadatos, índices de pending y cooldowns están acotados por las reservas
 y no se expulsan para hacer lugar a otra operación. Los resultados no se guardan
 por defecto indefinidamente: la ventana se elige explícitamente al componer el
-Gateway. Tras cerrar/reiniciar se pierde **todo** el estado en memoria. Esta fase
-no satisface retención durable, idempotencia de dominio ni exactamente-una-vez.
+Gateway. Sin almacén durable configurado, cerrar/reiniciar pierde **todo** ese
+estado en memoria. Fase 1E.1 conserva metadatos según la sección de abajo; ningún
+modo aporta idempotencia de dominio o exactamente-una-vez.
 
 Se aplican [PRODUCT_RULES](PRODUCT_RULES.md) ORC-01/02/03/04/05/06/07/08/12.
 Los datos y reglas de agentes siguen fuera de Jarvis. Eventos autenticados,
-replay y persistencia durable esperan Fase 3.
+replay y persistencia de eventos esperan Fase 3. El journal local de solicitudes
+de Fase 1E.1 no implementa esos controles de eventos.
 
 ## Integración opcional de Telegram de Fase 1D
 
@@ -194,7 +197,8 @@ conflicto del Gateway.
 La clave debe permanecer estable entre arranques; cambiarla, o cambiar instalación/
 binding, cambia el namespace y requiere revisar pendientes. El polling suministra
 el ID del bot; un adaptador directo que no lo proporcione usa username y debe
-mantenerlo estable. La clave no representa persistencia de reservas o resultados.
+mantenerlo estable. La clave por sí sola no persiste reservas o resultados;
+la continuidad durable requiere el almacén configurado descrito abajo.
 
 El adaptador reserva hasta 1024 acciones de agentes por handler antes del primer
 `await`, sin expulsar las activas o inciertas; lleno falla cerrado con un código
@@ -202,8 +206,9 @@ de log fijo. Mantiene separado el cache legacy de 1024 mensajes. Admite hasta oc
 invocaciones de lectura simultáneas y una cola acotada de 32 respuestas; los envíos
 se serializan y comparten ritmo/cooldown de Telegram. Un 429 de entrega reintenta
 solo el envío, nunca vuelve a invocar al agente. El Gateway conserva sus propias
-reservas de 256 y retención de outputs explícita. Todos son límites en memoria,
-sin garantía exactamente-una-vez tras reinicio.
+reservas de 256 y retención de outputs explícita. Son límites del motor en memoria;
+con el almacén opcional, las claves durables no se expulsan al reiniciar. Tampoco
+ese modo garantiza exactamente-una-vez entre sistemas.
 
 ```sh
 npm run agents:telegram:demo
@@ -230,8 +235,8 @@ política loopback exacta; el bot normal mantiene la política HTTPS de Fase 1C.
 La aceptación nueva con Telegram real está pendiente del operador, no se infiere
 del éxito de la prueba simulada. Ver [validación](PHASE_1D_VALIDATION.md).
 
-Antes de desplegar con efectos sensibles, Fase 1E debe resolver persistencia
-durable, Compose y recuperación locales; siguen pendientes y no se añaden aquí.
+Fase 1E.1 añade la base durable opcional. Antes de desplegar con efectos sensibles,
+Fase 1E.2 debe completar Compose, backups, restauración y recuperación locales.
 AWS/Lightsail permanece como proveedor previsto, sin despliegue ni facturación.
 
 ## Transporte HTTPS de Fase 1C
@@ -351,3 +356,152 @@ temporal no demuestran una implementación de agente durable. Se apaga y descart
 al finalizar. Las pruebas inyectan fallos y comparan contadores, sin red pública,
 credenciales reales, repositorios nuevos, contenedores o servicios comerciales.
 No es una aplicación de producción ni un deployment AWS.
+
+## Estado durable opcional de Fase 1E.1
+
+El [ADR SQLite WAL](adr/0001-durable-state-sqlite.md) registra la comparación con
+PostgreSQL. El puerto [DurableStateStore](../src/agents/state-store.ts) separa el
+proveedor del Core. `DurableAgentGateway` envuelve el Gateway existente; no cambia
+el HTTPS de Fase 1C ni el contrato de los agentes. Registry y permisos siguen
+siendo configuración local explícita, no manifiestos remotos o datos de dominio.
+
+Sin `JARVIS_STATE_FILE`, las demos/adaptadores programáticos pueden conservar el
+modo memoria anterior: **no hay recuperación durable**. El bot normal exige esa
+variable cuando se habilitan los comandos de agentes y abre una DB existente
+antes del polling. Si está ausente,
+corrupta, bloqueada o incompatible, no crea otra ni degrada a memoria.
+La configuración apagada no abre el almacén ni necesita un archivo de DB.
+
+### Preparación local
+
+Usar un filesystem local y un directorio privado nuevo, no NFS, symlink o carpeta
+compartida. En POSIX, por ejemplo desde la raíz:
+
+```sh
+mkdir -p .local
+mkdir -m 700 .local/state
+npm run state:init -- .local/state/jarvis.sqlite
+```
+
+El segundo comando presupone que `.local/state` no existe. Si ya existe, revisar
+permisos e historia; no borrar o recrear para resolver un error. En Windows, crear
+el directorio y restringir su ACL al operador y cuentas administrativas necesarias
+desde Propiedades → Seguridad, antes de inicializar:
+
+```powershell
+New-Item -ItemType Directory -Path .local/state
+npm.cmd run state:init -- .local/state/jarvis.sqlite
+```
+
+El adaptador verifica modo privado del directorio y archivos en POSIX, y rechaza
+links/reemplazos; un `chmod` no demuestra aislamiento ACL en Windows. No se afirma
+que las ACL del equipo del operador hayan sido verificadas. SQLite no cifra el
+archivo; proteger disco, cuenta y copias. `.local/`, DB y sidecars están excluidos
+de Git. No guardar la clave HMAC, Bearer o token Telegram dentro de la DB.
+
+En el entorno privado existente añadir:
+
+```dotenv
+JARVIS_STATE_FILE=.local/state/jarvis.sqlite
+```
+
+Mantener `JARVIS_TELEGRAM_AGENTS_ENABLED=true`, el archivo de agentes aprobado y
+la clave HMAC propia estable según [Telegram](TELEGRAM.md#configuración-administrada-de-agentes).
+`state:init` es creación exclusiva: no reemplaza archivos existentes ni sirve para
+recuperar una historia perdida. No lee `.env`, arranca Telegram o llama agentes.
+El bot normal conserva las instrucciones de arranque TS/JS anteriores.
+
+### Esquema, migración y transacciones
+
+La [migración 001](../migrations/001_durable_state.sql) crea:
+
+| Tabla               | Datos mínimos                                                                                        |
+| ------------------- | ---------------------------------------------------------------------------------------------------- |
+| `executions`        | Clave/hash, propietario de transición, contexto opaco, fase, códigos, operación pending y timestamps |
+| `actions`           | Clave y hash HMAC de acción Telegram, fase de preparación/entrega, propietario y tiempos             |
+| `offsets`           | Namespace HMAC del bot y siguiente offset monotónico                                                 |
+| `bindings`          | Fingerprints de instalación y bot que impiden cambiar silenciosamente el namespace                   |
+| `audit`             | Vocabulario fijo de transición, clave y timestamp; hasta 32 eventos por registro                     |
+| `schema_migrations` | Versión y checksum de migración                                                                      |
+
+No se almacenan inputs, outputs, mensajes, IDs Telegram en claro o credenciales.
+El hash del comando se protege con HMAC para no dejar un hash público enumerable
+del texto. La clave del scope de ejecución también es opaca. El contexto de
+protocolo sigue conteniendo aliases de sujeto aprobados: usar aliases sin PII.
+
+El archivo verifica `application_id`, `user_version=1`, checksum, estructura e
+integridad `quick_check`. Se aplica la migración solo al crear; versiones futuras
+o una estructura modificada se rechazan. Distribuir `migrations/` junto a `dist/`.
+`WAL` y `synchronous=FULL` se comprueban al abrir. Reserva y transiciones usan
+transacciones explícitas cortas, sin mantener locks durante awaits de red.
+El timeout de lock es 250 ms por defecto, máximo 1000 ms; las llamadas síncronas
+pueden demorar el event loop durante esa espera. La durabilidad depende también
+de fsync, SO y hardware; no es una garantía frente a cualquier pérdida física.
+
+### Recuperación y entrega
+
+La reserva única precede al efecto; `started` se confirma antes del transporte.
+El estado final se escribe antes de devolverlo. Dos callers del mismo proceso
+conservan single-flight y cancelación independiente; otra conexión/proceso encuentra
+la misma reserva y no obtiene una nueva ejecución por abrir el archivo.
+
+| Estado recuperado      | Conducta                                                                                                         |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `reserved` / `started` | Bloquear ejecución como incierta; no deducir que nunca se envió                                                  |
+| `uncertain`            | Conservar referencia/error seguro para conciliación, sin retry ciego                                             |
+| `completed`            | Resultado conocido, output no persistido: `RESULT_EXPIRED/completed`, sin nuevo envío                            |
+| `failed`               | Recuperar código y mensaje local seguro, sin error remoto crudo                                                  |
+| `pending`              | Conservar operation/request/correlation y plazo original de 24 h; no renovar ni consultar remoto automáticamente |
+| `not-started`          | Conservar rechazo conocido y clave; no convertirla en nueva acción                                               |
+
+El índice pendiente del transporte HTTPS permanece en memoria: tras reiniciar,
+`getOperation` devuelve el estado local recuperado, no un GET remoto de conciliación.
+Esa conciliación requiere un incremento explícito posterior; no reconstruir inputs,
+enviar otra clave o afirmar que el agente falló. Dentro de la sesión original se
+mantiene el polling autorizado anterior. Error del almacén tras configurar la DB
+cierra esa ruta de forma segura; no se devuelve un éxito desde cache para ocultarlo.
+
+Telegram reserva la acción tras autenticar allowlist/chat privado, antes del Core.
+`result-confirmed` significa que hay una presentación local preparada; **no** prueba
+éxito de negocio. Después registra `delivery-pending` y `delivery-started` antes
+de `sendMessage`, y finalmente `delivered`, `delivery-rejected` o incertidumbre.
+Solo un rechazo429 explícito permite volver a pending para reintentar la entrega.
+
+Tras una caída, cualquier acción existente se suprime: no vuelve a invocar al Core
+ni reenviar la respuesta, aun si quedó pendiente. No se guarda el texto necesario
+para una outbox de reenvío. El offset se carga al arrancar y se avanza tras completar
+el handler; una escritura fallida detiene el flujo en vez de resetearlo. Puede
+perderse una respuesta, especialmente si el proceso cae entre preparación y entrega.
+No hay exactamente-una-vez para Telegram o los agentes.
+
+La DB vincula fingerprints de clave HMAC/instancia/bindings y bot autenticado.
+Cambiar esos datos exige conciliación y migración administrada; no borrar DB,
+rotar claves o cambiar archivo para aparentar otra acción lógica.
+
+### Retención y revisión de reinicios
+
+La compactación es explícita, sin scheduler:
+
+```powershell
+npm.cmd run state:compact -- .local/state/jarvis.sqlite
+```
+
+Redacta contexto detallado de ejecuciones terminales y auditoría antigua elegible
+tras al menos siete días. Mantiene clave/hash/fase como tombstone, y las acciones
+Telegram mantienen sus metadatos mínimos de deduplicación. Pending e inciertos no
+se borran automáticamente. Hay un cupo total de registros; agotarlo falla cerrado,
+sin eliminar claves para admitir nuevos efectos. No se implementa borrado total
+o reinicialización segura de historia en esta fase.
+
+Para comprobar reinicios sin credenciales, usar las pruebas y comandos concretos
+de [PHASE_1E1_VALIDATION](PHASE_1E1_VALIDATION.md): usan archivos temporales reales,
+cierre/reapertura y procesos aislados. Al probar el bot normal aprobado, detenerlo,
+conservar DB y clave, y arrancarlo de nuevo con la misma configuración. Un mensaje
+ya reservado no debe reenviar su consulta/respuesta. No simular pérdidas borrando
+la DB productiva o usando operaciones sensibles.
+
+Fase 1E.2 abordará Compose, backups coherentes, restauración y recuperación local.
+No copiar únicamente el archivo principal mientras WAL pueda contener commits
+pendientes de checkpoint; no restaurar una copia antigua y reanudar efectos sin
+conciliar. AWS sigue sin desplegar; no se habilitan escritura de negocio, IA,
+Dispatcher o pagos por disponer de SQLite. Aplican ORC-02/03/05/06/07/08/11/12.

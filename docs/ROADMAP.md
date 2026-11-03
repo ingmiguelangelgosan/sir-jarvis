@@ -99,26 +99,44 @@ offset, resultados y pending siguen en memoria y se pierden al reiniciar.
 Solo lectura en este corte: no se habilitan efectos sensibles, IA, eventos,
 DB, nuevos repositorios o infraestructura AWS.
 
-## Fase 1E — persistencia durable, Compose y recuperación local: SIGUIENTE
+## Fase 1E.1 — persistencia durable e idempotencia: IMPLEMENTADA LOCALMENTE
 
-Elegir almacenamiento mínimo para configuración, permisos, estados, claves de
-deduplicación y auditoría mínima, sin copiar datos de dominio. Implementar y
-probar transiciones durables, arranque y cierre, expiración/retención, reinicios,
-conciliación de operaciones inciertas y recuperación sin repetir efectos a ciegas.
-No basta con restaurar un snapshot de disco: debe preservarse la semántica de
-solicitudes pendientes y claves antes de reabrir tráfico.
+Puerto de almacenamiento separado, SQLite WAL/FULL mediante Node24 sin ORM y
+migración versionada. [ADR](adr/0001-durable-state-sqlite.md). Se activa con
+`JARVIS_STATE_FILE` y DB inicializada explícitamente, obligatorias al activar
+agentes en el bot normal. Demos/adaptadores programáticos conservan el modo memoria
+y sus límites. No hay fallback ante una DB configurada inválida.
+Registry/permisos siguen en configuración local, no se copian dominios a SQLite.
 
-Preparar Docker Compose local con imágenes reproducibles, secretos separados,
-redes/egreso y TLS sin bypass, límites de recursos, salud y rollback. Probar backup
-y restauración aislados, pérdida de proceso/host y un único consumidor Telegram.
-Medir recuperación y documentar RPO/RTO antes de prometerlos.
+Reservar antes del efecto, registrar inicio y confirmar estado antes de entregarlo.
+Al reabrir, una clave anterior no vuelve a ser nueva: terminales conocidos se
+recuperan sin reconstruir outputs no guardados; reservas inciertas bloquean;
+pending conserva contexto/plazo sin GET remoto automático de recuperación.
+Journal de acciones y offset Telegram con HMAC y sin mensajes/IDs personales en
+claro; entrega incierta no se reenvía. Compactación controlada tras siete días
+conserva tombstones y no elimina automáticamente pendientes o inciertos.
 
-Aceptación: pruebas de reinicio/duplicados concurrentes, corte de red y recuperación,
-más Compose ejecutado localmente y restauración comprobada. Sigue pendiente;
-no se introduce DB o Compose para anticiparla durante Fase 1D. Esta entrega es
-requisito previo a AWS con efectos sensibles, no autorización de despliegue.
-Lightsail permanece como proveedor principal previsto; presupuesto, créditos,
-región y recursos exactos requieren revisión y aprobación separadas.
+Aceptación y comandos en [PHASE_1E1_VALIDATION](PHASE_1E1_VALIDATION.md): archivos
+temporales reales, cierre/reapertura y fallos sin credenciales, AWS o Docker.
+No prometer exactly-once, idempotencia de negocio o restauración de backups por
+estos controles. Siguen solo lectura, perfil no-paid-services e IA apagada.
+
+## Fase 1E.2 — Compose, backups y recuperación local: SIGUIENTE
+
+Preparar Docker Compose local con imágenes reproducibles, migraciones distribuidas,
+secretos separados, redes/egreso y TLS sin bypass, límites de recursos, salud,
+cierre ordenado y rollback. Un único consumidor Telegram y almacenamiento local
+durable con acceso privado. No basta montar una carpeta para garantizar recuperación.
+
+Implementar backups coherentes con WAL, retención/cifrado autorizados y restauración
+aislada. Probar pérdida de proceso/host, copia antigua, corte de red, estado incierto,
+duplicados concurrentes y conciliación antes de reabrir tráfico. Medir recuperación
+y documentar RPO/RTO antes de prometerlos; no sobrescribir datos reales como prueba.
+
+Aceptación: Compose ejecutado localmente y restauración comprobada sin reejecutar
+efectos desconocidos. Requisito previo a AWS con efectos sensibles, no autorización
+de desplegar. Lightsail sigue como principal previsto; Billing, créditos, región,
+presupuesto y recursos concretos requieren revisión y aprobación separadas.
 
 ## Fase 2 — primer agente real externo
 
@@ -126,12 +144,12 @@ Elegir un agente, comprobar que funciona por sí solo, sus términos de privacid
 permisos, compatibilidad y presupuesto. Finance Agent es candidato, no módulo de
 Jarvis ni dependencia obligatoria. Ninguna integración paga se activa por defecto.
 La aceptación pertenece a ambos proyectos y sus fuentes de verdad.
-Antes de permitir efectos sensibles, completar la recuperación durable de Fase 1E
+Antes de permitir efectos sensibles, completar la recuperación de Fases 1E.1/1E.2
 y las confirmaciones/idempotencia propias del agente externo.
 
 ## Fase 3 — eventos, notificaciones y autonomía
 
-Sobre la base durable de Fase 1E: Dispatcher, autenticación/replay, inbox/outbox
+Sobre la base durable de Fase 1E.1 y la recuperación de Fase 1E.2: Dispatcher, autenticación/replay, inbox/outbox
 durable, consentimiento revocable,
 correlación de operaciones pendientes y deduplicación antes de efectos. Elegir y
 probar persistencia mínima, recuperación y límites. Autonomía/scheduler en el
@@ -152,7 +170,7 @@ reinicio y métricas; luego dimensionar según consumo. AWS/Lightsail es la prop
 principal; EC2/Lambda y DigitalOcean/Cloud Run son alternativas documentadas,
 sin recursos contratados. Revisar costos y solicitar
 autorización concreta antes de cualquier contratación o activación de facturación.
-La preparación local empieza en Fase 1E; esta fase exige además validar el entorno
+La preparación local se divide en Fases 1E.1/1E.2; esta fase exige además validar el entorno
 objetivo y una autorización concreta, sin saltar recuperación o controles de costo.
 
 ## Fase 6 — web y funciones adicionales

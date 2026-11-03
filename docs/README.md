@@ -35,7 +35,9 @@ conecta el adaptador Telegram al Core y Gateway con `/agents` y `/agent`, solo
 para lectura autorizada y mediante habilitación explícita. El recorrido completo
 usa Telegram simulado y Echo real entre procesos; la aceptación del nuevo flujo
 con el bot real corresponde al operador. No hay
-agentes de dominio, eventos durables, IA ni persistencia. AWS/Lightsail es la
+agentes de dominio, eventos de Dispatcher o IA. Fase 1E.1 incorpora SQLite WAL
+opcional para solicitudes, acciones Telegram y offsets, sin payloads completos.
+AWS/Lightsail es la
 estrategia principal documentada; no se contrataron servicios ni accedió a la cuenta.
 
 La arquitectura y su diagrama están en [ARCHITECTURE](ARCHITECTURE.md), el contrato
@@ -103,16 +105,17 @@ Para el bot propio sigue [TELEGRAM.md](TELEGRAM.md), incluida la configuración 
 BotFather. Conserva tu `.env` existente; copia [.env.example](../.env.example) solo
 si no existe. El entorno del proceso prevalece sobre el archivo local.
 
-| Variable                         | Uso                                                                          |
-| -------------------------------- | ---------------------------------------------------------------------------- |
-| `NODE_ENV`                       | development/test/production; default development                             |
-| `JARVIS_TIMEZONE`                | Zona válida para Node/Intl; default America/Bogota                           |
-| `JARVIS_AI_MODE`                 | Solo disabled                                                                |
-| `TELEGRAM_BOT_TOKEN`             | Requerida únicamente al iniciar Telegram; token propio                       |
-| `TELEGRAM_ALLOWED_USER_IDS`      | Requerida para Telegram; IDs numéricos explícitos                            |
-| `JARVIS_TELEGRAM_AGENTS_ENABLED` | `false` por defecto; habilita comandos de lectura con `true`                 |
-| `JARVIS_AGENTS_CONFIG_FILE`      | Solo con integración activa; JSON privado administrado localmente            |
-| `JARVIS_TELEGRAM_AGENT_KEY`      | Solo con integración activa; clave HMAC propia y estable, distinta de tokens |
+| Variable                         | Uso                                                                                |
+| -------------------------------- | ---------------------------------------------------------------------------------- |
+| `NODE_ENV`                       | development/test/production; default development                                   |
+| `JARVIS_TIMEZONE`                | Zona válida para Node/Intl; default America/Bogota                                 |
+| `JARVIS_AI_MODE`                 | Solo disabled                                                                      |
+| `TELEGRAM_BOT_TOKEN`             | Requerida únicamente al iniciar Telegram; token propio                             |
+| `TELEGRAM_ALLOWED_USER_IDS`      | Requerida para Telegram; IDs numéricos explícitos                                  |
+| `JARVIS_TELEGRAM_AGENTS_ENABLED` | `false` por defecto; habilita comandos de lectura con `true`                       |
+| `JARVIS_AGENTS_CONFIG_FILE`      | Solo con integración activa; JSON privado administrado localmente                  |
+| `JARVIS_TELEGRAM_AGENT_KEY`      | Solo con integración activa; clave HMAC propia y estable, distinta de tokens       |
+| `JARVIS_STATE_FILE`              | Obligatoria al activar agentes en el bot normal; DB local previamente inicializada |
 
 ```sh
 npm run telegram
@@ -152,24 +155,30 @@ eventos, correlación e idempotencia. Sus tipos siguen siendo puros; Fase 1B añ
 validación runtime estricta de ejecuciones y schemas de capacidades ficticias,
 reservas concurrentes, cancelación y estados inciertos. Los eventos todavía no se
 procesan. Se conservan fixtures estáticos, snapshot financiero y enlaces verificados.
-HTTPS se verifica contra un proceso ficticio, sin DB nueva, MCP o cola distribuida.
+HTTPS se verifica contra un proceso ficticio. El estado durable opcional de
+Fase 1E.1 usa un adaptador SQLite, sin MCP o cola distribuida. No contiene datos
+de dominio; el registro y los permisos siguen siendo configuración local.
+[Decisión y límites](adr/0001-durable-state-sqlite.md),
+[configuración](AGENT_RUNTIME.md#estado-durable-opcional-de-fase-1e1).
 
 ## Herramientas y evidencia
 
-| Comando                                       | Resultado esperado                                          |
-| --------------------------------------------- | ----------------------------------------------------------- |
-| `npm run dev` / `npm run diagnose`            | Diagnóstico desde TS                                        |
-| `npm run build` / `npm start`                 | Compilar / ejecutar diagnóstico JS                          |
-| `npm run telegram` / `npm run telegram:start` | Bot TS / compilado con configuración propia                 |
-| `npm run agents:demo`                         | Demostración local con transporte falso y sin credenciales  |
-| `npm run agents:https:demo`                   | HTTPS real con proceso ficticio temporal, sin red pública   |
-| `npm run agents:telegram:demo`                | Recorrido completo con Telegram simulado y Echo HTTPS local |
-| `npm run telegram:agents:demo`                | Prueba manual explícita con bot propio y Echo temporal      |
-| `npm run format` / `npm run format:check`     | Aplicar / comprobar formato                                 |
-| `npm run lint` / `npm run typecheck`          | Lint y tipos, incluidos contratos estáticos                 |
-| `npm test`                                    | Tests sin APIs reales ni claves                             |
-| `npm run check`                               | Formato, lint, tipos, tests y build                         |
-| `npm audit`                                   | Consulta de vulnerabilidades conocidas                      |
+| Comando                                       | Resultado esperado                                            |
+| --------------------------------------------- | ------------------------------------------------------------- |
+| `npm run dev` / `npm run diagnose`            | Diagnóstico desde TS                                          |
+| `npm run build` / `npm start`                 | Compilar / ejecutar diagnóstico JS                            |
+| `npm run telegram` / `npm run telegram:start` | Bot TS / compilado con configuración propia                   |
+| `npm run agents:demo`                         | Demostración local con transporte falso y sin credenciales    |
+| `npm run agents:https:demo`                   | HTTPS real con proceso ficticio temporal, sin red pública     |
+| `npm run agents:telegram:demo`                | Recorrido completo con Telegram simulado y Echo HTTPS local   |
+| `npm run telegram:agents:demo`                | Prueba manual explícita con bot propio y Echo temporal        |
+| `npm run state:init -- <ruta>`                | Crear una DB nueva explícita, sin llamadas externas           |
+| `npm run state:compact -- <ruta>`             | Redactar detalles terminales elegibles conservando tombstones |
+| `npm run format` / `npm run format:check`     | Aplicar / comprobar formato                                   |
+| `npm run lint` / `npm run typecheck`          | Lint y tipos, incluidos contratos estáticos                   |
+| `npm test`                                    | Tests sin APIs reales ni claves                               |
+| `npm run check`                               | Formato, lint, tipos, tests y build                           |
+| `npm audit`                                   | Consulta de vulnerabilidades conocidas                        |
 
 ESLint, TypeScript, Prettier y Zod conservan las versiones del lockfile. La caché
 local y `ignore-scripts` de [.npmrc](../.npmrc) permanecen. Snapshot y bloque
@@ -182,6 +191,8 @@ los tests verifican hash e inclusión íntegra.
 - [Verificación de Fase 1B](PHASE_1B_VALIDATION.md), registro del Gateway en memoria.
 - [Verificación de Fase 1C](PHASE_1C_VALIDATION.md), HTTPS real local y pruebas.
 - [Verificación de Fase 1D](PHASE_1D_VALIDATION.md), integración conversacional opcional.
+- [Verificación de Fase 1E.1](PHASE_1E1_VALIDATION.md), estado durable y recuperación.
+- [ADR SQLite WAL](adr/0001-durable-state-sqlite.md), elección, seguridad y límites.
 - [Plan AWS](AWS_DEPLOYMENT_PLAN.md), costos, créditos y preparación sin desplegar.
 - [Instrucciones Codex](AGENTS.md) y [flujo de Git](GIT_WORKFLOW.md).
 - [Prompt de Fase 1B](prompts/PHASE_1B_PROMPT.md).
