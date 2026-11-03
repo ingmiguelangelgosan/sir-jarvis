@@ -135,3 +135,9 @@ en memoria con transporte falso. Fase 1C incorpora HTTPS con un proceso de prueb
 independiente; no equivale a conectar agentes de dominio, persistir idempotencia
 o controlar presupuestos de producción. Eventos durables y consumo comercial
 siguen pendientes. AWS es una estrategia documentada, sin desplegar ni contratar.
+
+Fase 1D añade comandos Telegram opcionales, deshabilitados por defecto, para
+capacidades Echo de lectura autorizadas mediante el Core y el Gateway HTTPS.
+No habilita escritura, finanzas, IA, interpretación libre, autonomía o pagos.
+La deduplicación sigue en memoria; la prueba de esa ruta con el bot real se
+separa de la evidencia automatizada con Telegram simulado y HTTPS local real.

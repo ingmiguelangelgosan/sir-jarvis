@@ -6,11 +6,13 @@ import { runTelegramPolling } from '../channels/telegram/polling.ts';
 import { loadEnvironment } from '../infrastructure/environment.ts';
 import { ConfigurationError, parseConfig } from './config.ts';
 import { parseTelegramConfig } from './telegram-config.ts';
+import { loadTelegramAgentIntegration } from './telegram-agents.ts';
 
 const controller = new AbortController();
 const stop = () => controller.abort();
 process.once('SIGINT', stop);
 process.once('SIGTERM', stop);
+let agents: ReturnType<typeof loadTelegramAgentIntegration>;
 
 try {
   if (process.argv.length > 2) {
@@ -23,11 +25,15 @@ try {
     );
     parseConfig(environment); // También rechaza cualquier intento de activar IA.
     const config = parseTelegramConfig(environment);
+    agents = loadTelegramAgentIntegration(environment, config.allowedUserIds);
     await runTelegramPolling(
       createTelegramApi(config.token),
       config.allowedUserIds,
       controller.signal,
-      { log: (event) => process.stdout.write(`${event}\n`) },
+      {
+        log: (event) => process.stdout.write(`${event}\n`),
+        ...(agents ? { agentCommands: agents.commands } : {}),
+      },
     );
   }
 } catch (error) {
@@ -44,6 +50,7 @@ try {
     process.exitCode = 1;
   }
 } finally {
+  agents?.close();
   process.removeListener('SIGINT', stop);
   process.removeListener('SIGTERM', stop);
 }

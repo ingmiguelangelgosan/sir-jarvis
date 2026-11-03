@@ -1,0 +1,42 @@
+{
+  "instance_id": "jarvis-demo",
+  "subjects": [{ "telegram_user_id": 42, "subject_ref": "owner-demo" }],
+  "agents": [
+    {
+      "instance_id": "jarvis-demo",
+      "descriptor": {
+        "protocol_version": "1.0",
+        "agent_id": "demo.echo",
+        "agent_version": "0.1.0",
+        "name": "Echo independiente",
+        "capabilities": [
+          {
+            "name": "echo.reply",
+            "version": "1.0",
+            "description": "Refleja texto ficticio aprobado, sin efectos de escritura.",
+            "effect": "read",
+            "supports_idempotency": true,
+            "input_schema_id": "demo.input.v1",
+            "output_schema_id": "demo.output.v1"
+          }
+        ]
+      },
+      "enabled": false,
+      "availability": "unknown",
+      "connection": {
+        "base_url": "https://echo.example.invalid",
+        "request_credential_ref": "echo-request",
+        "event_key_ref": "unused-events"
+      },
+      "permissions": [
+        {
+          "subject_ref": "owner-demo",
+          "capabilities": [{ "name": "echo.reply", "version": "1.0" }]
+        }
+      ]
+    }
+  ],
+  "allowed_endpoints": [{ "origin": "https://echo.example.invalid" }],
+  "credential_variables": { "echo-request": "JARVIS_ECHO_BEARER" },
+  "result_cache_ms": 60000
+}
