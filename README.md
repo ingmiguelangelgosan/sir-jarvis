@@ -19,6 +19,10 @@ restauración aislada bloqueada hasta conciliación. Su evidencia se distingue d
 un despliegue AWS o de una garantía exactamente-una-vez.
 La licencia definitiva sigue pendiente.
 
+Fase 1F prepara el piloto Lightsail con un Compose mínimo, preflight, métricas
+locales, runbook y checklist de costos/seguridad. **No despliega AWS** ni confirma
+créditos activos; requiere autorización expresa antes de crear recursos.
+
 Jarvis centraliza permisos, conversaciones, coordinación y notificaciones.
 Cada agente conserva su lógica, datos, repositorio, lenguaje y despliegue; puede
 funcionar sin Jarvis. Las conexiones usarán contratos versionados. Privacidad,
@@ -32,6 +36,9 @@ un agente o por este diseño.
 - [Registry/Gateway, HTTPS y demos locales](docs/AGENT_RUNTIME.md)
 - [Infraestructura y estimaciones](docs/DEPLOYMENT_STRATEGY.md)
 - [Plan AWS sin desplegar](docs/AWS_DEPLOYMENT_PLAN.md)
+- [Runbook del piloto Lightsail](docs/AWS_PILOT_RUNBOOK.md)
+- [Checklist previo de autorización](docs/AWS_PILOT_CHECKLIST.md)
+- [Validación local de Fase 1F](docs/PHASE_1F_VALIDATION.md)
 - [Roadmap de Jarvis](docs/ROADMAP.md)
 - [Telegram](docs/TELEGRAM.md)
 - [Finance Agent independiente](docs/agents/FINANCE_AGENT_SPEC.md)

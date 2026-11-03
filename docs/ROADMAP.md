@@ -123,7 +123,9 @@ temporales reales, cierre/reapertura y fallos sin credenciales, AWS o Docker.
 No prometer exactly-once, idempotencia de negocio o restauración de backups por
 estos controles. Siguen solo lectura, perfil no-paid-services e IA apagada.
 
-## Fase 1E.2 — Compose, backups y recuperación local: IMPLEMENTADA LOCALMENTE
+## Fase 1E.2 — Compose, backups y recuperación local: FUSIONADA
+
+PR #8 fusionado en main, verificado antes de iniciar Fase 1F.
 
 Docker Compose local con imágenes reproducibles, migraciones distribuidas,
 secretos separados, redes/egreso y TLS sin bypass, límites de recursos, salud,
@@ -144,15 +146,24 @@ efectos desconocidos. Requisito previo a AWS con efectos sensibles, no autorizac
 de desplegar. Lightsail sigue como principal previsto; Billing, créditos, región,
 presupuesto y recursos concretos requieren revisión y aprobación separadas.
 
-## Siguiente corte — preparación del piloto AWS, sin despliegue automático
+## Fase 1F — preparación del piloto AWS: IMPLEMENTADA, SIN DESPLIEGUE
 
-Solo después del merge de Fase 1E.2 y de resolver sus pendientes de recuperación:
-revisar el entorno Lightsail previsto, medir capacidad representativa, definir
-custodia de claves y copia fuera del host, demostrar restore/conciliación y
-documentar límites de RPO/RTO. Verificar región, cotización, Billing, créditos y
-presupuesto antes de solicitar autorización concreta de recursos. Un plan o una
-configuración Compose no autorizan contratación, pago, despliegue o efectos
-sensibles. Conservar lectura, `no-paid-services` e IA apagada.
+[Runbook](AWS_PILOT_RUNBOOK.md), [checklist](AWS_PILOT_CHECKLIST.md),
+[validación](PHASE_1F_VALIDATION.md) y Compose mínimo independiente de la demo.
+Preflight exige imagen local inmutable y controles del manifiesto; inspección
+local emite métricas acotadas sin secretos. Primer piloto propuesto con agentes
+apagados y comandos Telegram existentes, sin Echo permanente o puertos públicos.
+Plan de costo bruto de USD 25, créditos sin verificar y backup externo cifrado
+con destino sujeto a aprobación; no se consulta Billing ni se crean recursos.
+
+## Siguiente corte — despliegue piloto solo con autorización expresa
+
+Verificar región, cotización, Billing/créditos con permiso específico y completar
+el registro privado de recursos antes de pedir autorización de creación. Validar
+Ubuntu/SSH/egreso Docker, capacidad representativa de 2 GB y restauración desde
+el destino externo autorizado, con conciliación y medición humana de RPO/RTO.
+Un runbook o configuración Compose no autoriza contratación o despliegue. Mantener
+lectura, `no-paid-services`, IA apagada y agentes de negocio fuera del proyecto.
 
 ## Fase 2 — primer agente real externo
 

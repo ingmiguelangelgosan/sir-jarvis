@@ -1,0 +1,84 @@
+# Standalone first-pilot manifest. Never combine with the local Echo demo manifest.
+# Deployment requires the separate operator authorization checklist.
+x-pilot-runtime: &pilot-runtime
+  image: '${JARVIS_PILOT_IMAGE:?Set the reviewed immutable image reference}'
+  pull_policy: never
+  user: '1000:1000'
+  init: true
+  read_only: true
+  security_opt: ['no-new-privileges:true']
+  cap_drop: ['ALL']
+  pids_limit: 64
+  cpus: 0.75
+  mem_limit: 384m
+  memswap_limit: 384m
+  tmpfs: ['/tmp:rw,noexec,nosuid,nodev,size=16m,mode=1777']
+  stop_grace_period: 40s
+  logging:
+    driver: json-file
+    options:
+      max-size: 1m
+      max-file: '2'
+
+services:
+  jarvis:
+    <<: *pilot-runtime
+    restart: 'on-failure:3'
+    environment:
+      NODE_ENV: production
+      JARVIS_AI_MODE: disabled
+      # Deliberately fixed: external-agent activation needs its own reviewed cut.
+      JARVIS_TELEGRAM_AGENTS_ENABLED: 'false'
+      TELEGRAM_BOT_TOKEN_FILE: /run/secrets/telegram_token
+      TELEGRAM_ALLOWED_USER_IDS_FILE: /run/secrets/allowed_users
+      JARVIS_STATE_FILE: /data/state/jarvis.sqlite
+      JARVIS_RUNTIME_DIRECTORY: /data/runtime
+      JARVIS_HEALTH_FILE: /tmp/jarvis-health
+    secrets: [telegram_token, allowed_users]
+    volumes: [pilot_state:/data]
+    networks:
+      pilot_egress:
+        ipv4_address: 172.30.78.2
+    healthcheck:
+      test: ['CMD', 'node', '/app/healthcheck.mjs']
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
+
+  maintenance:
+    <<: *pilot-runtime
+    profiles: ['tools']
+    restart: 'no'
+    mem_limit: 768m
+    memswap_limit: 768m
+    entrypoint: ['node', 'dist/app/backup-main.js']
+    command: ['inspect', '/data/state/jarvis.sqlite']
+    healthcheck:
+      disable: true
+    network_mode: none
+    secrets: [backup_key]
+    volumes:
+      - pilot_state:/data
+      - pilot_backups:/backups
+      - pilot_recovery:/recovery
+
+networks:
+  pilot_egress:
+    enable_ipv6: false
+    ipam:
+      config:
+        - subnet: 172.30.78.0/28
+
+volumes:
+  pilot_state: {}
+  pilot_backups: {}
+  pilot_recovery: {}
+
+secrets:
+  telegram_token:
+    file: '${JARVIS_PILOT_PRIVATE_DIR:?Set the private secrets directory}/telegram-token'
+  allowed_users:
+    file: '${JARVIS_PILOT_PRIVATE_DIR:?Set the private secrets directory}/allowed-users'
+  backup_key:
+    file: '${JARVIS_PILOT_PRIVATE_DIR:?Set the private secrets directory}/backup.key'

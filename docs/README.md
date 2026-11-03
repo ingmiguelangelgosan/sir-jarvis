@@ -40,6 +40,12 @@ opcional para solicitudes, acciones Telegram y offsets, sin payloads completos.
 AWS/Lightsail es la
 estrategia principal documentada; no se contrataron servicios ni accedió a la cuenta.
 
+Fase 1E.2 ya aporta Compose y backups cifrados con restauración bloqueada.
+Fase 1F prepara el primer piloto, sin crear infraestructura:
+[runbook](AWS_PILOT_RUNBOOK.md), [checklist de autorización](AWS_PILOT_CHECKLIST.md)
+y [validación local](PHASE_1F_VALIDATION.md). Su Compose mínimo mantiene agentes
+apagados; preflight e inspección viven en `deploy/`, fuera del Core.
+
 La arquitectura y su diagrama están en [ARCHITECTURE](ARCHITECTURE.md), el contrato
 en [AGENT_PROTOCOL](AGENT_PROTOCOL.md) y el plan de recursos en
 [DEPLOYMENT_STRATEGY](DEPLOYMENT_STRATEGY.md). Las referencias a finanzas en los

@@ -206,6 +206,14 @@ Las claves de negocio y transacciones se implementan en el agente de dominio.
 
 ## Despliegue y extensión
 
+Fase 1F prepara un [piloto Lightsail](AWS_PILOT_RUNBOOK.md) con Compose separado
+de la demo: un contenedor Jarvis, mantenimiento offline y volúmenes locales, sin
+Echo permanente o puertos del Gateway. La integración de agentes está apagada en
+ese manifiesto inicial; no cambia el transporte HTTPS ni los permisos existentes.
+Preflight e inspección son herramientas administrativas fuera del Core. El
+[checklist](AWS_PILOT_CHECKLIST.md) exige autorización y controles del host; aún
+no hay despliegue, egreso Ubuntu probado o backup externo activado.
+
 Objetivo inicial: Ubuntu en AWS Lightsail y Docker Compose, bajo autorización futura.
 Plan y límites en [DEPLOYMENT_STRATEGY](DEPLOYMENT_STRATEGY.md) y
 [AWS_DEPLOYMENT_PLAN](AWS_DEPLOYMENT_PLAN.md). El Dockerfile y Compose de Fase

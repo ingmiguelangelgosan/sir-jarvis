@@ -232,3 +232,10 @@ sigue expuesta a la pérdida del host: la replicación fuera del host, su cifrad
 retención y custodia de claves requieren un procedimiento adicional autorizado.
 
 Aplican [PRODUCT_RULES](PRODUCT_RULES.md) ORC-01/02/03/04/05/06/07/08/11/12.
+
+La estrategia externa concreta de Fase 1F compara S3 y B2, con retención,
+credenciales y clave AES separadas en el [plan AWS](AWS_DEPLOYMENT_PLAN.md).
+El [runbook piloto](AWS_PILOT_RUNBOOK.md) exige descargar y verificar una copia
+real antes de considerar probada la recuperación fuera del host. Esta fase no
+crea destinos ni ejecuta uploads. Un snapshot de Lightsail no sustituye el
+backup coherente de SQLite ni la conciliación del intervalo perdido.

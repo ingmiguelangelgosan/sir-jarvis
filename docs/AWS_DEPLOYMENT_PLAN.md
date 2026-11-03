@@ -1,9 +1,11 @@
 # Plan de despliegue AWS — preparación documental
 
-**Estado:** diseño de Fase 1C, sin despliegue, contratación, acceso a la cuenta ni
-creación de presupuestos. La decisión autorizada es documentar AWS como proveedor
-principal; cualquier acción que cree, cambie o elimine recursos necesita alcance
-y autorización expresos. No hay IaC ejecutable ni Compose AWS operativo aquí.
+**Estado, Fase 1F (2026-11-03): preparación del piloto, sin despliegue,
+contratación, acceso a la cuenta ni creación de presupuestos.** Fase 1E.2 ya
+verificó Compose, SQLite WAL, backups cifrados y recuperación locales. La VPS AWS,
+sus controles y los backups remotos siguen pendientes. El [runbook](AWS_PILOT_RUNBOOK.md)
+y el [checklist privado](AWS_PILOT_CHECKLIST.md) concretan el trabajo posterior a
+una autorización expresa; este documento no concede esa autorización.
 Ver [estrategia y proyección](DEPLOYMENT_STRATEGY.md).
 
 ## Cuenta, créditos y autorización
@@ -36,21 +38,44 @@ y agentes, disponibilidad del bundle/Ubuntu, normativa, ubicación de datos y
 transferencia. No se ha medido latencia ni seleccionado región definitiva.
 No elegir una región solo por una suposición de cercanía o crédito.
 
-Cotizar Lightsail Linux/Unix con IPv4 pública: 2 GB RAM, 2 vCPU y 60 GB SSD por
-USD 12/mes de referencia. Revisar transferencia, moneda, impuestos, snapshots,
-discos, IP, DNS/dominio y cualquier monitoreo adicional. El upgrade propuesto a
-4 GB/2 vCPU/80 GB, USD 24/mes, requiere métricas y aprobación nuevas.
-[Bundles oficiales](https://docs.aws.amazon.com/lightsail/latest/userguide/amazon-lightsail-bundles.html).
+La referencia pública consultada el **2026-11-03** es Lightsail Linux/Unix con IPv4
+pública: 2 GB RAM, 2 vCPU, 60 GB SSD y 3 TB de transferencia publicados por
+**USD 12/mes**. Las condiciones y la transferencia dependen de la región. La
+tarifa de snapshots de instancia/disco es **USD 0,05 por GB-mes almacenado**;
+no asumir que conservar una copia diaria equivale siempre a 60 GB totales.
+[Precios oficiales Lightsail](https://aws.amazon.com/lightsail/pricing/).
+
+Proponer Ubuntu **24.04 LTS** soportado, sujeto a disponibilidad del blueprint
+en la región elegida y compatibilidad con Docker. No seleccionar automáticamente
+otra versión ni pagar Ubuntu Pro como efecto lateral.
+[Ciclo oficial Ubuntu](https://ubuntu.com/about/release-cycle).
+
+El presupuesto de referencia mensual es **USD 25 brutos para todo el piloto**:
+
+| Partida                                             | Reserva mensual de planificación | Condición                                                                         |
+| --------------------------------------------------- | -------------------------------- | --------------------------------------------------------------------------------- |
+| VPS 2 GB/2 vCPU/60 GB con IPv4                      | USD 12                           | Revalidar región, tarifa y bundle al autorizar                                    |
+| Snapshots opcionales                                | Hasta USD 3                      | Equivale a 60 GB-mes a la tarifa publicada; no activar sin inventario y retención |
+| Backups externos cifrados                           | Hasta USD 2                      | Destino, peticiones, descarga y transferencia cotizados antes de activar          |
+| Margen para impuestos, transferencia y otros cargos | USD 8                            | No equivale a permiso para contratar servicios adicionales                        |
+| Total de referencia                                 | **USD 25**                       | Si la cotización completa excede 25, detener y solicitar revisión                 |
+
+Los márgenes son decisiones de planificación, no precios de servicios. Para el
+piloto no se prevén discos adicionales, dominio, balanceador, RDS, NAT Gateway,
+servicios de IA ni monitoreo comercial. Recontar imágenes, logs, DB/WAL y copias
+locales dentro del SSD; medir espacio antes de aceptar la capacidad. Una
+ampliación a 4 GB requiere nueva cotización y autorización, no es un paso automático.
 
 La [proyección de seis meses](DEPLOYMENT_STRATEGY.md#proyección-ilustrativa-de-seis-meses)
-estima USD 96 de VPS, USD 54 de margen, USD 150 de planificación y USD 50 de
-reserva nominal. Costos brutos, crédito aplicado y neto deben figurar como columnas
+mantiene 2 GB y estima USD 72 de VPS, hasta USD 78 de margen y USD 150 de
+planificación; los USD 50 restantes son una resta nominal frente a 200, no saldo.
+Costos brutos, crédito aplicado y neto deben figurar como columnas
 separadas en el registro privado; cubrir el bruto con crédito no reduce el consumo.
 No se adquieren Reserved Instances, Savings Plans ni compromisos.
 
 ## Diseño de host, contenedores y redes
 
-Diseño pendiente de implementar y validar en una fase de despliegue:
+Composición local existente que debe volver a verificarse en la VPS autorizada:
 
 - Ubuntu LTS soportado, actualizaciones de seguridad, Docker/Compose soportados y
   versiones de imágenes fijadas. Jarvis permanece un único contenedor modular;
@@ -62,7 +87,7 @@ Diseño pendiente de implementar y validar en una fase de despliegue:
   accede a DB, secretos o red de otro. No abrir DB a Internet. Sin RDS inicial.
 - Firewall del proveedor y del host con acceso mínimo. Telegram mantiene egreso
   al endpoint oficial por long polling; no necesita ingreso público del bot.
-  No publicar Event Dispatcher ni webhooks en Fase 1C.
+  No publicar Gateway, Event Dispatcher o webhooks en el piloto.
 - Para HTTPS de agentes, usar nombres y certificados válidos, destinos registrados,
   Bearer por integración, redirects bloqueados y política de egreso por allowlist.
   Los destinos públicos se validan por defecto; una IP privada RFC1918/ULA requiere
@@ -93,8 +118,8 @@ Mantener SO/paquetes actualizados y revisar permisos/usuarios del grupo Docker.
 Credenciales propias server-only por agente, con rotación y revocación. No incluir
 tokens en imágenes, URLs, comandos visibles, logs, respaldos sin cifrar o el PR.
 Inyectarlos por el mecanismo local documentado para cada proceso; no leer `.env`
-del operador para preparar ejemplos. Para Compose futuro, evaluar secretos como
-archivos montados con permisos por servicio y soporte de lectura probado; Compose
+del operador para preparar ejemplos. Compose ya permite secretos como archivos
+montados con permisos por servicio y soporte de lectura probado localmente; Compose
 no cifra automáticamente los archivos del host. [Secrets de Compose](https://docs.docker.com/compose/how-tos/use-secrets/).
 
 No añadir un gestor de secretos pago por anticipación. Si se elige uno, cotizarlo,
@@ -103,24 +128,111 @@ inválido sin revelar material secreto ni crear bucles de reinicio silenciosos.
 
 ## Backups y restauración
 
-Inventariar configuración, permisos, versión de imágenes, claves necesarias y
-datos durables realmente existentes. Los estados actuales del Gateway son **solo
-memoria**: un snapshot de disco no captura ni restaura su deduplicación activa.
-Persistencia durable y recuperación de operaciones requieren su fase y pruebas.
-Nunca importar el libro financiero de un agente como base de datos de Jarvis.
+El estado mínimo de solicitudes/acciones/offsets reside en SQLite WAL. El CLI
+existente produce snapshots coherentes con la API SQLite, cifra con AES-256-GCM
+y restaura a un destino nuevo bloqueado. No copiar solo el archivo principal
+con WAL activo ni presentar snapshots Lightsail como sustituto del procedimiento.
+Inventariar versión de imagen, esquema, configuración privada, permisos y claves
+necesarias por separado. No importar datos de dominio de agentes.
+[Procedimiento implementado](BACKUP_RESTORE.md).
 
-Propuesta previa a aprobación: copias diarias cifradas, siete diarias y cuatro
-semanales, al menos una copia fuera del host, claves de descifrado separadas y
-acceso mínimo. Cotizar almacenamiento, snapshots y transferencia antes de activar;
-retención y destino deben aprobarse. Una snapshot puede contener secretos:
-protegerla con el mismo cuidado que el host. No publicar backups o claves.
+### Copia externa propuesta
 
-Objetivos iniciales no medidos: RPO 24 h y RTO 4 h para datos durables aprobados.
+Para el primer piloto, proponer **Backblaze B2 privado** como copia independiente
+de AWS, sujeto a aceptación de privacidad, región, precio y cuenta. **S3 Standard
+privado** es la alternativa dentro de AWS si la elegibilidad y el costo la hacen
+preferible. No crear cuentas/buckets ni configurar clientes remotos en esta fase.
+La copia es un objeto opaco `.jvb`: ningún destino necesita descifrarlo ni recibir
+la clave HMAC, el token Telegram, el Bearer o la base sin cifrar.
+
+| Destino evaluado         | Precio público de referencia, consultado 2026-11-03                                                                            | Ventaja y límite                                                                                                     |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| S3 Standard, `us-east-1` | USD 0,023/GB-mes inicial; PUT USD 0,005/1000; GET USD 0,0004/1000                                                              | Control de acceso, versionado y Object Lock; misma cuenta/proveedor implica riesgo común de acceso/facturación       |
+| Backblaze B2             | Desde USD 6,95/TB-mes; egreso incluido hasta 3 veces el almacenamiento medio y exceso USD 0,01/GB; revisar transacciones/clase | Cuenta y proveedor independientes; nueva evaluación de privacidad, región, credenciales y pago fuera de créditos AWS |
+
+Las tarifas S3 se contrastaron con el
+[catálogo público oficial de `us-east-1`](https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonS3/current/us-east-1/index.json)
+y [precios S3](https://aws.amazon.com/s3/pricing/). La oferta B2 publica 10 GB
+iniciales sin cargo, pero el presupuesto no depende de promociones ni de un
+supuesto saldo gratuito. Sus clases A/B/C y D tienen condiciones distintas.
+[Precios B2](https://www.backblaze.com/cloud-storage/pricing).
+
+Ejemplo aritmético deliberadamente conservador, **5 GB-mes** de objetos totales
+incluyendo versiones/retención y 100 PUT + 100 GET: S3 daría **USD 0,11554** antes
+de transferencia, impuestos y extras. Con 1 TB decimal = 1000 GB, la referencia
+B2 para 5 GB sería **USD 0,03475** antes de egreso, transacciones aplicables e
+impuestos, sin descontar su nivel gratuito. Son ejemplos de cálculo, no una
+cotización regional ni garantía de la reserva mensual de USD 2. La salida desde
+Lightsail, el tráfico de restauración y cualquier versión retenida cuentan aparte.
+
+Operación propuesta, manual y fuera del Core:
+
+1. El operador crea y verifica cada día un `.jvb` con el CLI existente. No se
+   incorpora scheduler ni uploader a Jarvis. Si no se cumple la rutina, registrar
+   el intervalo real; RPO 24 h deja de ser un objetivo alcanzado.
+2. Extraer **solo el objeto cifrado** desde el volumen de copias mediante el
+   procedimiento local y un canal SSH verificado al equipo del operador. La
+   clave de descifrado se custodia además fuera de la VPS y fuera del bucket,
+   con copia de recuperación offline y acceso separado. La VPS la necesita para
+   producir el backup; no afirmar que cifrar protege frente a un host comprometido.
+3. En ese equipo, verificar SHA256, ejecutar `state:verify` y conservar en un
+   catálogo privado el nombre UUID, hash, inicio/fin de snapshot, esquema, versión
+   de imagen, clave de backup por alias, versión remota y retención. El catálogo
+   incluye la evidencia conocida posterior al backup; no se almacena junto al
+   único original ni contiene secretos o conversaciones.
+4. Subir desde el equipo del operador con un cliente/API oficial revisado y
+   credencial dedicada al bucket/prefijo; las credenciales remotas no entran en
+   el contenedor Jarvis ni en la VPS. Verificar identidad de destino, TLS, tamaño,
+   checksum descargado y lectura con una credencial separada antes de contar la
+   copia como recuperable. No ejecutar cargas para probar este documento.
+5. Usar nombres únicos `jarvis/<instalacion-opaca>/YYYY-MM-DD/backup-<UUID>.jvb`,
+   versionado y retención protegida **35 días** propuestos. En S3 exigir creación
+   condicional `If-None-Match: *`; una colisión falla. Object Lock protege versiones,
+   pero no prohíbe por sí solo crear otra versión con el mismo nombre. En B2,
+   no asumir que omitir `deleteFiles` impide ocultar/borrar por nombre: comprobar
+   los permisos efectivos del cliente y retener las versiones bloqueadas.
+6. Mantener al menos siete puntos diarios y cuatro semanales verificables; con
+   bloqueo de 35 días pueden coexistir **más de 11 objetos**. A 128 MiB por copia,
+   35 copias suman aproximadamente 4,375 GiB más metadatos/versiones. Supervisar
+   el total frente a la hipótesis de 5 GB; no aumentar frecuencia/retención sin
+   recalcular. No borrar ni sobrescribir una copia válida al subir la siguiente.
+7. Proponer modo governance sin permiso de bypass para la credencial de carga;
+   una credencial administrativa separada custodia la política. Probar carga
+   duplicada, borrado denegado, expiración y recuperación tras perder la VPS antes
+   de aprobar el destino. La retención puede mantener costos tras cerrar el piloto;
+   compliance irreversible necesita una aprobación distinta y no se activa aquí.
+
+Fuentes de controles:
+[S3 escrituras condicionales](https://docs.aws.amazon.com/AmazonS3/latest/userguide/conditional-writes.html),
+[S3 Object Lock](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock.html),
+[B2 Object Lock](https://www.backblaze.com/docs/cloud-storage-object-lock) y
+[permisos B2](https://www.backblaze.com/docs/cloud-storage-map-iam-policies-and-s3-acls-to-backblaze-b2-access-controls).
+
+Rotar claves de autenticación remota con verificación de lectura y revocación de
+la anterior. La clave AES simétrica del backup **no** se recupera del objeto:
+retener todas las claves antiguas requeridas por copias vigentes, separar alias
+del valor, registrar corte y crear/verificar una copia nueva tras rotar. No
+destruir claves previas hasta que expire toda su retención y se valide otra copia.
+La pérdida de la VPS exige recuperar también configuración y claves privadas de
+su custodia independiente; la DB sola no reconstruye identidad o permisos.
+
+Objetivos iniciales para el piloto, **aún no medidos en AWS**: RPO 24 h desde la
+última copia externa verificada y RTO 4 h incluyendo revisión humana y conciliación.
 Probar restauración en un host aislado autorizado, verificar integridad, permisos,
 secretos y TLS, y registrar tiempos/costos. Antes de habilitar tráfico, conciliar
 operaciones inciertas: reiniciar o restaurar un backup antiguo no autoriza
 repetir solicitudes ni notificaciones. Cada agente prueba sus propias copias.
 El borrado de originales requiere una decisión separada y una restauración válida.
+La pérdida de conectividad no autoriza retries ciegos. Antes de reabrir tráfico,
+usar `state:inspect`, evidencia externa y `state:authorize` con el identificador
+concreto y un floor de updates Telegram verificado; no retirar el bloqueo a mano.
+El floor se consume mediante el journal durable del flujo de agentes. En el
+piloto inicial con agentes apagados ese journal no se conecta: no afirmar que el
+floor descarta automáticamente diagnósticos previos ni que la deduplicación de
+esas respuestas sobreviva a reinicios. Revisar mensajes anteriores y la posibilidad
+de respuestas repetidas antes de reanudar; no activar agentes para ocultar el límite.
+Incluso cero pendientes en la copia puede ocultar solicitudes posteriores al
+backup. Si no puede conciliarse, mantener el destino bloqueado.
 
 ## Métricas y observabilidad
 
@@ -128,6 +240,12 @@ Empezar con métricas locales acotadas: CPU, RAM, disco, reinicios, latencia p95
 errores por código, timeouts, 429, pendientes y duplicados. No registrar cuerpos,
 Bearer, referencias sensibles, nombres o IDs de Telegram. Health checks sin
 secretos; control de acceso a métricas y rotación de logs.
+
+Esa lista define las necesidades del piloto; no toda ella está instrumentada.
+Los procedimientos disponibles deben declarar qué miden y qué permanece pendiente;
+no inventar p95, timeouts o conectividad a partir de ausencia de eventos. Con los
+agentes apagados, la conectividad y los errores del Gateway son **no aplicables**.
+La salud local indica proceso/heartbeat, no prueba una llamada reciente a Telegram.
 
 Proponer para aprobación logs locales rotados, límite de tamaño por servicio y
 retención corta explícita; medir volumen antes de elegir cifras finales. No
@@ -222,6 +340,8 @@ propio responsable y procedimiento, sin dependencias obligatorias de AWS.
 - [ ] Plan de corte/rollback y migración o eliminación antes de agotar crédito acordados.
 - [ ] Autorización expresa del operador para los recursos concretos y acciones finales.
 
-Ninguna casilla se marca por existir este documento. Aplican
-[PRODUCT_RULES](PRODUCT_RULES.md) ORC-01/03/04/06/07/08/11/12. La demostración local
-de Fase 1C no verifica una cuenta, despliegue, restauración o costo AWS.
+Ninguna casilla se marca por existir este documento. Completar privadamente el
+[checklist detallado](AWS_PILOT_CHECKLIST.md) y el [runbook](AWS_PILOT_RUNBOOK.md).
+Aplican [PRODUCT_RULES](PRODUCT_RULES.md) ORC-01/02/03/04/05/06/07/08/11/12. Las
+pruebas locales de Fase 1E.2 no verifican cuenta, despliegue, transferencia,
+restauración externa, créditos o costo AWS.
