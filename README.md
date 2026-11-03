@@ -8,10 +8,12 @@ independientes mediante una interfaz conversacional.
 fue reportada como exitosa por el operador el 2026-11-02. Fase 1B implementa
 Registry/Gateway en memoria, validación y autorización. Fase 1C añade transporte
 HTTPS real, verificado contra un proceso de prueba independiente. No hay agentes
-de dominio conectados, IA, despliegue ni persistencia durable. Fase 1D conecta
+de dominio conectados, IA o despliegue. Fase 1D conecta
 Telegram con el Core y ese Gateway mediante comandos opcionales de lectura,
 deshabilitados por defecto; el recorrido completo se prueba con Telegram simulado
 y Echo HTTPS independiente. La nueva aceptación con Telegram real queda para el operador.
+Fase 1E.1 añade estado durable opcional en SQLite WAL para reservas, acciones y
+offsets, con recuperación conservadora y sin guardar mensajes u outputs completos.
 La licencia definitiva sigue pendiente.
 
 Jarvis centraliza permisos, conversaciones, coordinación y notificaciones.
@@ -31,7 +33,8 @@ un agente o por este diseño.
 - [Telegram](docs/TELEGRAM.md)
 - [Finance Agent independiente](docs/agents/FINANCE_AGENT_SPEC.md)
 - [Trazabilidad financiera](docs/agents/FINANCE_AGENT_TRACEABILITY.md)
-- [Validación de Fase 1D](docs/PHASE_1D_VALIDATION.md)
+- [Validación de Fase 1E.1](docs/PHASE_1E1_VALIDATION.md)
+- [Decisión SQLite WAL](docs/adr/0001-durable-state-sqlite.md)
 - [Git, protección de main y PR](docs/GIT_WORKFLOW.md)
 
 Para colaborar con Codex, consulta [AGENTS.md](AGENTS.md).
@@ -50,3 +53,9 @@ sigue la [guía manual](docs/TELEGRAM.md#prueba-manual-con-telegram-real-y-echo-
 `/start`, `/status` y el comportamiento sin integración se conservan.
 AWS/Lightsail es la estrategia principal;
 el saldo, la elegibilidad y el vencimiento de créditos siguen sin verificar.
+
+La durabilidad se activa con `JARVIS_STATE_FILE` tras inicializar explícitamente
+un archivo privado. El bot normal exige esa DB cuando se activan los comandos de
+agentes; las demos/adaptadores programáticos pueden seguir usando memoria, sin
+garantías durables. Una DB configurada ausente o inválida detiene el arranque, sin
+recrearla. [Preparación y reinicios](docs/AGENT_RUNTIME.md#estado-durable-opcional-de-fase-1e1).

@@ -46,6 +46,7 @@ interface Flight {
   attemptDeadlineAt: number | undefined;
 }
 interface Entry {
+  readonly requestKey: string;
   readonly fingerprint: string;
   readonly context: Context;
   state: ExecutionOutcome | 'in-flight';
@@ -61,6 +62,15 @@ interface Entry {
 }
 
 export interface GatewayOptions {
+  /** Internal atomic state observer, never a public agent wire contract. */
+  readonly observer?: {
+    result(key: string, result: AgentExecutionResult): void;
+    error(
+      key: string,
+      error: AgentGatewayError,
+      mode: 'execute' | 'poll',
+    ): void;
+  };
   /** Retención transitoria explícita de outputs; las claves no se expulsan. */
   readonly resultCacheMs: number;
   readonly maxRecords?: number;
@@ -117,7 +127,8 @@ export class InMemoryAgentGateway implements AgentGateway {
   readonly #registry: AgentRegistry;
   readonly #schemas: CapabilitySchemaCatalog;
   readonly #transport: AgentTransport;
-  readonly #options: Required<GatewayOptions>;
+  readonly #options: Required<Omit<GatewayOptions, 'observer'>>;
+  readonly #observer: GatewayOptions['observer'];
   readonly #entries = new Map<string, Entry>();
   readonly #operations = new Map<string, Entry>();
   readonly #cooldowns = new Map<string, number>();
@@ -132,6 +143,7 @@ export class InMemoryAgentGateway implements AgentGateway {
     this.#registry = registry;
     this.#schemas = schemas;
     this.#transport = transport;
+    this.#observer = options.observer;
     this.#options = {
       resultCacheMs: integer(options.resultCacheMs, 900_000),
       maxRecords: integer(options.maxRecords ?? 256, 4096),
@@ -201,6 +213,7 @@ export class InMemoryAgentGateway implements AgentGateway {
       capability: request.capability,
     });
     const entry: Entry = {
+      requestKey: key,
       fingerprint,
       context,
       state: 'in-flight',
@@ -372,10 +385,15 @@ export class InMemoryAgentGateway implements AgentGateway {
 
   #fail(entry: Entry, flight: Flight, error: unknown): void {
     if (flight.closed) return;
-    const safe = new AgentGatewayError(
+    let safe = new AgentGatewayError(
       error instanceof AgentGatewayError ? error.code : 'UNAVAILABLE',
       this.#outcome(entry),
     );
+    try {
+      this.#observer?.error(entry.requestKey, safe, flight.mode);
+    } catch {
+      safe = new AgentGatewayError('UNAVAILABLE', 'uncertain');
+    }
     if (flight.mode === 'execute') {
       this.#clearResult(entry);
       entry.error = safe;
@@ -387,6 +405,11 @@ export class InMemoryAgentGateway implements AgentGateway {
 
   #terminate(entry: Entry, flight: Flight, error: AgentGatewayError): void {
     if (flight.closed) return;
+    try {
+      this.#observer?.error(entry.requestKey, error, flight.mode);
+    } catch {
+      error = new AgentGatewayError('UNAVAILABLE', 'uncertain');
+    }
     // Tombstone y cierre antes de abortar: incluso callbacks reentrantes lo ven.
     if (flight.mode === 'execute') {
       this.#clearResult(entry);
@@ -493,6 +516,7 @@ export class InMemoryAgentGateway implements AgentGateway {
       entry.pendingExpiresAt ??= this.#now() + 86_400_000;
       this.#operations.set(key, entry);
     }
+    this.#observer?.result(entry.requestKey, result);
     entry.state = result.status;
     entry.result = result;
     if (entry.cacheTimer) clearTimeout(entry.cacheTimer);

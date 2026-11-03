@@ -141,3 +141,9 @@ capacidades Echo de lectura autorizadas mediante el Core y el Gateway HTTPS.
 No habilita escritura, finanzas, IA, interpretación libre, autonomía o pagos.
 La deduplicación sigue en memoria; la prueba de esa ruta con el bot real se
 separa de la evidencia automatizada con Telegram simulado y HTTPS local real.
+
+Fase 1E.1 añade estados y deduplicación durables en SQLite local para el bot con
+agentes habilitados. Conserva reservas y resultados inciertos tras reiniciar sin
+reconstruir efectos por nuevas llamadas. No persiste mensajes/outputs por defecto
+ni promete exactly-once. Compose, backups y restauración se validarán en Fase 1E.2;
+la persistencia no habilita escritura de negocio o despliegue AWS.

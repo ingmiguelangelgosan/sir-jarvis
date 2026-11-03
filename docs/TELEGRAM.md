@@ -138,7 +138,7 @@ se avanza el offset incluso si es ajeno, no soportado o su respuesta falla.
 Esto evita repetir respuestas durante la ejecución a costa de poder perder una
 respuesta fallida. No guarda el contenido del mensaje.
 
-La memoria y el offset no persisten: tras reiniciar, una actualización todavía no
+En el modo memoria, el estado y el offset no persisten: tras reiniciar, una actualización todavía no
 confirmada en Telegram puede reaparecer. No hay garantía de entrega exactamente
 una vez ni de idempotencia financiera. El futuro Finance Agent independiente
 requerirá claves únicas y transacciones propias antes de registrar dinero; Jarvis
@@ -152,7 +152,8 @@ no admite más comandos de agentes y registra solo `telegram-agent-capacity`;
 invocaciones de lectura simultáneas y 32 respuestas esperando entrega; la cola
 comparte el ritmo y cooldown de Telegram. El Gateway admite hasta 256 reservas
 por defecto, un límite independiente que también falla cerrado. No reinicies
-para repetir una acción incierta: el reinicio pierde toda la memoria local.
+para repetir una acción incierta. El modo SQLite opcional de Fase 1E.1 conserva
+metadatos y claves, pero no habilita repetir ni garantiza entregar respuestas.
 
 `TelegramApi`, el handler de actualizaciones y el núcleo determinista permiten
 cambiar el transporte después. No existe servidor webhook todavía; antes de
@@ -320,7 +321,9 @@ Para una integración aprobada fuera del supervisor temporal:
    mecanismo seguro. Referencia y token no van en mensajes de Telegram ni payloads.
    No reutilices la clave HMAC o el token del bot como Bearer; esos nombres están
    reservados y también se impide enviar como Bearer el mismo valor de la clave HMAC.
-6. Ejecuta `npm.cmd run check` y `npm.cmd run telegram`, o compila y usa
+6. Antes de iniciar el bot normal con agentes, prepara la DB y `JARVIS_STATE_FILE`
+   siguiendo [Persistencia opcional y reinicios](#persistencia-opcional-y-reinicios).
+   Ejecuta `npm.cmd run check` y `npm.cmd run telegram`, o compila y usa
    `npm.cmd run telegram:start`. Los cambios de archivo/variables requieren reinicio.
    Configuración activa inválida falla antes de iniciar polling y sin mostrar valores.
 
@@ -336,12 +339,64 @@ Telegram quedan dentro del adaptador, no se envían ni se derivan con hashes
 públicos reversibles por enumeración. Los datos del comando no determinan la clave
 de la acción. El handler no vuelve a procesar el mismo chat/mensaje; dentro del
 mismo scope de agente/capacidad, el Gateway detecta la clave con comando distinto.
-Mantener clave e identidad local estables conserva IDs, pero **no conserva las
-reservas, resultados u offset en memoria**. Rotar clave, instalación o bindings
+Mantener clave e identidad local estables conserva IDs, pero **no conserva por sí
+solo las reservas, resultados u offset en memoria**. Rotar clave, instalación o bindings
 modifica ese namespace y exige revisar pendientes antes de reanudar. El polling
 usa el ID autenticado del bot; adaptadores directos sin ese ID usan su username
 como fallback y deben mantenerlo estable.
 
-Aplican ORC-01/02/03/04/05/06/07/08/12. La siguiente entrega prevista es
-persistencia durable, Docker Compose y recuperación **local**, antes de AWS o
-efectos sensibles. No se implementa esa entrega por habilitar los comandos actuales.
+Aplican ORC-01/02/03/04/05/06/07/08/12. Fase 1E.1 añade el almacén opcional siguiente.
+Fase 1E.2 completará Docker Compose, backups, restauración y recuperación **local**,
+antes de AWS o efectos sensibles.
+
+## Persistencia opcional y reinicios
+
+La integración de agentes sigue deshabilitada por defecto. Al activarla en el
+bot normal, `JARVIS_STATE_FILE` es obligatoria; el modo memoria queda disponible
+en demos/adaptadores programáticos, sin atribuirle durabilidad.
+Para el bot normal con configuración de agentes aprobada, preparar un directorio
+privado y una DB nueva mediante la [guía de runtime](AGENT_RUNTIME.md#estado-durable-opcional-de-fase-1e1),
+y configurar su ruta local:
+
+```dotenv
+JARVIS_STATE_FILE=.local/state/jarvis.sqlite
+```
+
+Comandos de mantenimiento, sin credenciales o conexiones externas:
+
+```powershell
+npm.cmd run state:init -- .local/state/jarvis.sqlite
+npm.cmd run state:compact -- .local/state/jarvis.sqlite
+```
+
+`init` solo crea un archivo nuevo si el directorio privado ya existe. No ejecutarlo
+para reemplazar una DB perdida o dañada: una historia ausente requiere detener y
+conciliar. Windows necesita ACL privada revisada por el operador; POSIX exige modo
+privado de directorio/archivos. Una DB configurada ausente, inválida o incompatible
+impide arrancar, sin fallback a memoria. No cambiar ruta para saltar un bloqueo.
+
+El journal almacena claves y hashes HMAC, fases y tiempos, no mensajes, outputs o
+IDs Telegram en claro. El offset monotónico usa namespace HMAC de bot, se recupera
+antes del polling y se confirma tras el handler. Clave, instancia, bindings y bot
+se vinculan con la DB: cambios inesperados fallan cerrados, no crean otro historial.
+
+Las fases de entrega distinguen acción reservada, resultado local preparado,
+entrega pendiente, envío iniciado y entrega confirmada/incierta. El resultado local
+preparado puede ser un mensaje de timeout; no significa éxito del agente. La marca
+de inicio se confirma antes de enviar a Telegram. Un429 explícito puede reintentar
+solo la entrega; un error o caída con resultado incierto no autoriza reenviarla.
+
+Al reabrir, una acción existente no vuelve a ejecutar el Core **ni a enviar una
+respuesta**, incluso si quedó como entrega pendiente. No hay outbox con textos
+privados para reconstruirla: alguna respuesta puede perderse. Si se recibe un
+mensaje nuevo, su acción lógica es distinta; no usarlo para ocultar incertidumbre.
+La reserva de agente también se conserva: completed sin output persistido queda
+como estado conocido; pending recuperado no añade polling remoto automático.
+
+Conservar archivo y sidecars según la estrategia de respaldo futura. No borrar
+reservas, resetear offset o restaurar una copia antigua para forzar reenvíos.
+La compactación tras siete días redacta detalle terminal elegible, conserva
+tombstones y no elimina pending/inciertos. [Esquema y límites](AGENT_RUNTIME.md#estado-durable-opcional-de-fase-1e1),
+[ADR](adr/0001-durable-state-sqlite.md), [pruebas de recuperación](PHASE_1E1_VALIDATION.md).
+El supervisor `telegram:agents:demo` sigue siendo temporal y usa claves efímeras:
+no prueba continuidad de la instalación del operador entre sus ejecuciones.

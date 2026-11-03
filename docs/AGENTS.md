@@ -69,6 +69,7 @@ src/
   infrastructure/       # entorno local
   agents/               # protocolo, Registry/Gateway, fake y transporte HTTPS
 tests/
+migrations/             # esquema versionado del estado mínimo del orquestador
 docs/
   agents/               # especificación de proyectos externos, sin runtime
   history/              # requisitos originales preservados
@@ -97,9 +98,15 @@ La configuración privada de agentes vive fuera de Git, por ejemplo `.local/`.
 No usar IDs de Telegram como `subject_ref`, no derivar actores de parámetros ni
 enviar IDs o secretos al agente. Clave HMAC estable y Bearer separados; la clave
 deriva IDs opacos por acción, sin texto del comando. Reservas/offset en memoria
-no sobreviven a reinicios. Antes de efectos sensibles o despliegue AWS, Fase 1E
-debe implementar persistencia durable, Compose y recuperación **locales**, con
-sus pruebas; nada de ello existe por incluirlo en el roadmap.
+no sobreviven a reinicios en el modo memoria. Fase 1E.1 incorpora un puerto de
+estado durable y SQLite WAL opcional mediante `JARVIS_STATE_FILE`; leer el
+[ADR](adr/0001-durable-state-sqlite.md) y [runtime](AGENT_RUNTIME.md#estado-durable-opcional-de-fase-1e1)
+antes de cambiar reservas, retención o recuperación. No guardar inputs/outputs
+completos, mensajes o IDs personales en claro. Reservar antes del efecto y no
+reejecutar una clave recuperada incierta. Una DB configurada ausente/corrupta o
+incompatible debe fallar cerrada; nunca recrearla o degradar a memoria.
+Antes de efectos sensibles o despliegue AWS, Fase 1E.2 debe completar Compose,
+backups, restauración y recuperación **locales**, con sus pruebas.
 
 ## Trabajo y verificación
 

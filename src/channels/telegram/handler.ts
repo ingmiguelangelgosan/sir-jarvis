@@ -57,6 +57,7 @@ export function createTelegramHandler(
     chatId: number,
     reply: string,
     signal: AbortSignal,
+    action?: string,
   ): Promise<void> {
     for (let attempt = 0; attempt < 3 && !signal.aborted; attempt += 1) {
       try {
@@ -64,11 +65,14 @@ export function createTelegramHandler(
         if (remaining > 0) await pause(remaining, signal);
         if (signal.aborted) return;
         nextSendAt = now() + 1000;
+        if (action) hooks.agentJournal!.deliveryStarted(action);
         await api.sendMessage(chatId, reply, signal);
+        if (action) hooks.agentJournal!.deliveryFinished(action, 'delivered');
         return;
       } catch (error) {
         if (signal.aborted) return;
         if (error instanceof TelegramApiError && error.kind === 'rate-limit') {
+          if (action) hooks.agentJournal!.deliveryPending(action);
           nextSendAt = Math.max(
             nextSendAt,
             now() + (error.retryAfterMs ?? 1000),
@@ -78,13 +82,19 @@ export function createTelegramHandler(
             continue;
           }
           hooks.log?.('telegram-send-rejected');
+          if (action)
+            hooks.agentJournal!.deliveryFinished(action, 'delivery-uncertain');
         } else if (
           error instanceof TelegramApiError &&
           (error.kind === 'rejected' || error.kind === 'unauthorized')
         ) {
           hooks.log?.('telegram-send-rejected');
+          if (action)
+            hooks.agentJournal!.deliveryFinished(action, 'delivery-rejected');
         } else {
           hooks.log?.('telegram-delivery-unconfirmed');
+          if (action)
+            hooks.agentJournal!.deliveryFinished(action, 'delivery-uncertain');
         }
         return;
       }
@@ -111,6 +121,18 @@ export function createTelegramHandler(
     // Reserva antes de efectos externos: un envío incierto no se reintenta a ciegas.
     const agentCommand =
       hooks.agentCommands !== undefined && isTelegramAgentCommand(message.text);
+    let durableAction: string | undefined;
+    if (agentCommand && hooks.agentJournal) {
+      durableAction = hooks.agentJournal.reserve({
+        userId: message.from.id,
+        chatId: message.chat.id,
+        messageId: message.message_id,
+        botUsername,
+        ...(botId === undefined ? {} : { botId }),
+        text: message.text,
+      });
+      if (!durableAction) return;
+    }
     if (agentCommand) {
       if (agentProcessed.size >= 1024) {
         hooks.log?.('telegram-agent-capacity');
@@ -144,6 +166,10 @@ export function createTelegramHandler(
     } catch {
       reply = 'No pude obtener una respuesta del agente.';
     }
+    if (durableAction) {
+      hooks.agentJournal!.result(durableAction);
+      hooks.agentJournal!.deliveryPending(durableAction);
+    }
     if (signal.aborted) return;
     if (!reply || reply.length > 4096)
       reply = 'No puedo mostrar esa respuesta con seguridad.';
@@ -153,12 +179,13 @@ export function createTelegramHandler(
     }
     queued += 1;
     const delivery = deliveries.then(() =>
-      sendReply(message.chat.id, reply, signal),
+      sendReply(message.chat.id, reply, signal, durableAction),
     );
     deliveries = delivery.catch(() => undefined);
     try {
       await delivery;
     } catch {
+      if (durableAction) throw new Error('Durable Telegram delivery stopped.');
       if (!signal.aborted) hooks.log?.('telegram-delivery-unconfirmed');
     } finally {
       queued -= 1;

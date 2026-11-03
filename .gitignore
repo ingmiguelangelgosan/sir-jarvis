@@ -5,6 +5,10 @@ coverage/
 .npm-cache/
 .tools/
 .local/
+*.sqlite
+*.sqlite-*
+*.db
+*.db-*
 *.tsbuildinfo
 
 # Credenciales y archivos privados; solo se versiona el ejemplo
