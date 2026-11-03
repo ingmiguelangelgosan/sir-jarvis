@@ -39,14 +39,42 @@ anteriores**, sin modificarlos para adaptar expectativas. Los nuevos casos usan
 claves generadas de prueba, Telegram simulado, archivos temporales y Echo local;
 no token real, AWS, credenciales del operador o APIs comerciales.
 
-| Verificación ejecutada                               | Resultado observado                                                                                           |
-| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `npm run check`, secuencia completa final            | **429/429**, formato, lint sin warnings, typecheck, pruebas y build correctos                                 |
-| `node --test tests/state-backup.test.ts`             | **14/14**, incluidos rollback/RPO-RTO, pérdida HTTPS posterior a aceptación y protección del heartbeat        |
-| Documentación                                        | **6/6**: enlaces, anchors, hash e inclusión íntegra del snapshot financiero                                   |
-| Build Docker                                         | Ejecutado realmente con Node 24 fijado, runtime compilado y solo dependencias productivas                     |
-| `node deploy/compose-check.mjs <directorio-privado>` | **12 escenarios correctos**, **42.695 s**, incluidos backup/verify en línea y restauración anterior bloqueada |
-| CI Windows/Linux del PR                              | Pendiente de verificar al crear el PR; no se infiere del resultado local                                      |
+| Verificación ejecutada                               | Resultado observado                                                                                                                        |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `npm run check`, secuencia completa final            | **429/429**, formato, lint sin warnings, typecheck, pruebas y build correctos                                                              |
+| `node --test tests/state-backup.test.ts`             | **14/14**, incluidos rollback/RPO-RTO, pérdida HTTPS posterior a aceptación y protección del heartbeat                                     |
+| Documentación                                        | **6/6**: enlaces, anchors, hash e inclusión íntegra del snapshot financiero                                                                |
+| Build Docker                                         | Ejecutado realmente con Node 24 fijado, runtime compilado y solo dependencias productivas                                                  |
+| `node deploy/compose-check.mjs <directorio-privado>` | **12 escenarios correctos**, **42.695 s**, incluidos backup/verify en línea y restauración anterior bloqueada                              |
+| CI Windows/Linux del push                            | Ambos checks correctos en [Actions 41693799909](https://github.com/ingmiguelangelgosan/sir-jarvis/actions/runs/41693799909) para `5a9e44e` |
+
+También se ejecutaron `npm ci` (102 paquetes auditados, cero vulnerabilidades
+conocidas), diagnóstico y entrada compilada. La revisión de los 135 archivos del
+índice no encontró credenciales reales ni artefactos privados; identificó los dos
+canarios ficticios deliberados de Telegram. No se modificaron el workflow, el
+lockfile, las pruebas anteriores o los documentos financieros preservados.
+
+## Publicación y revisión manual
+
+La rama `feat/local-compose-backup-recovery` está publicada. La creación mediante
+`gh pr create` fue rechazada por GitHub con `must be a collaborator
+(createPullRequest)`: la sesión de GitHub CLI reporta permiso `READ`. El push de
+Git sí funcionó mediante la autenticación configurada para ese transporte. No se
+extrajeron credenciales ni se intentó eludir la restricción de la API.
+
+El PR **no está creado**, por lo que no hay CI de evento `pull_request` que
+presentar como aprobada. Los checks anteriores corresponden al evento `push` de
+la rama. El propietario puede [abrir el PR hacia main](https://github.com/ingmiguelangelgosan/sir-jarvis/compare/main...feat/local-compose-backup-recovery?expand=1)
+y esperar nuevamente los checks Windows/Linux antes de revisar. La descripción
+completa está preparada localmente en `.tools/phase1e2-pr-body.md`:
+
+```sh
+gh pr create --repo ingmiguelangelgosan/sir-jarvis --base main --head feat/local-compose-backup-recovery --title 'feat: contenedores locales y recuperación segura de SQLite' --body-file .tools/phase1e2-pr-body.md
+```
+
+Ese comando requiere una sesión con los permisos correspondientes; no cambia la
+protección ni fusiona o activa auto-merge. La entrega técnica y las pruebas locales
+están implementadas; la apertura/revisión del PR permanece pendiente por permiso.
 
 Las 391 pruebas previas permanecen independientes de los nuevos casos. La CI
 habitual no necesita Docker, credenciales Telegram o AWS. Docker estaba instalado
