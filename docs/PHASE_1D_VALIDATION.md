@@ -91,7 +91,7 @@ La demo manual usa claves efímeras y no ofrece continuidad entre ejecuciones.
 No se promete exactamente-una-vez, retención durable o idempotencia financiera.
 
 Se reserva antes del primer await: duplicados concurrentes del mismo chat/mensaje
-causan una ejecución y una respuesta. Las acciones de agentes tienen un índice
+causan como máximo una ejecución y una respuesta. Las acciones de agentes tienen un índice
 no expulsable de 1024 por handler; al llenarse se rechazan sin efecto y solo se
 registra `telegram-agent-capacity`. Tráfico legacy no expulsa esas acciones.
 Como máximo ocho consultas activas en el adaptador y 32 entregas en espera;

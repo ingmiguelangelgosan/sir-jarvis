@@ -59,8 +59,9 @@ TELEGRAM_ALLOWED_USER_IDS=TU_ID_NUMERICO
 JARVIS_TELEGRAM_AGENTS_ENABLED=false
 ```
 
-Los dos últimos valores son marcadores que debes reemplazar; no son credenciales
-funcionales. El token y la allowlist vacíos o inválidos impiden iniciar Telegram.
+`PEGA_AQUI_EL_TOKEN_DE_BOTFATHER` y `TU_ID_NUMERICO` son marcadores que debes
+reemplazar; no son credenciales funcionales. Conserva el flag de agentes en
+`false` para el comportamiento anterior. El token y la allowlist vacíos o inválidos impiden iniciar Telegram.
 La allowlist acepta enteros positivos seguros separados por comas, sin usernames
 ni IDs de chats grupales. Solo los IDs enumerados pueden llegar al núcleo. Se
 recomienda **un propietario por instalación**; permitir otros IDs no crea perfiles,
