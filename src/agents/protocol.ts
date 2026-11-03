@@ -144,7 +144,7 @@ export interface AgentOperationQuery extends AgentEnvelope {
   readonly operation_id: string;
 }
 
-/** Puertos v1: implementaciones locales con transporte simulado desde Fase 1B. */
+/** Puertos v1: Registry/Gateway locales; transportes fake y HTTPS intercambiables. */
 export interface AgentRegistry {
   get(instanceId: string, agentId: string): AgentRegistration | undefined;
   list(instanceId: string): readonly AgentRegistration[];

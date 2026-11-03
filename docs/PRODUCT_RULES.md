@@ -54,7 +54,8 @@ Antes de cualquier futura llamada paga, comprobar autorización y presupuesto,
 reservar consumo concurrente y usar topes del proveedor cuando existan. Las
 estimaciones locales no garantizan un límite de facturación por carreras, latencia,
 cargos externos o cambios de precios. Ante incertidumbre, detener la ruta.
-Actualmente IA permanece deshabilitada y no hay agentes conectados.
+Actualmente IA permanece deshabilitada; solo se verifica un agente ficticio local
+en testing, sin agentes de dominio ni infraestructura contratada.
 
 ## ORC-05 — Confirmaciones y confianza
 
@@ -130,6 +131,7 @@ el operador, diseñado, pendiente y no verificado. No construir microservicios
 internos, colas distribuidas, servidores MCP, web o nuevos repositorios en esta
 fase. El servicio Jarvis sigue siendo modular y ligero. Los tipos del protocolo
 no validan JSON por sí solos; Fase 1B añade validación, autorización y Registry/Gateway
-en memoria con transporte falso. No se presentan como conexión a agentes reales,
-persistencia de idempotencia o controles de presupuesto de producción. Eventos
-durables, HTTP y consumo real siguen pendientes de fases posteriores.
+en memoria con transporte falso. Fase 1C incorpora HTTPS con un proceso de prueba
+independiente; no equivale a conectar agentes de dominio, persistir idempotencia
+o controlar presupuestos de producción. Eventos durables y consumo comercial
+siguen pendientes. AWS es una estrategia documentada, sin desplegar ni contratar.

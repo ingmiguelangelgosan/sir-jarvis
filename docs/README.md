@@ -29,9 +29,10 @@ mueven al núcleo. Sus [reglas completas](agents/FINANCE_AGENT_SPEC.md), la
 Fase 0 y Telegram de Fase 1A implementados y fusionados. El operador reportó
 aceptación real exitosa el 2026-11-02; los tests automatizados usan Telegram
 simulado. Fase 1B aporta Registry/Gateway en memoria, validadores y un caso de uso
-autorizado con transporte falso, sin cambiar respuestas o flujos del bot. Ningún
-agente externo está conectado. HTTP, eventos durables, IA y persistencia siguen
-pendientes. No se contrataron servicios.
+autorizado con transporte falso, sin cambiar respuestas o flujos del bot. Fase 1C
+añade transporte HTTPS real contra un fixture independiente temporal. No hay
+agentes de dominio, eventos durables, IA ni persistencia. AWS/Lightsail es la
+estrategia principal documentada; no se contrataron servicios ni accedió a la cuenta.
 
 La arquitectura y su diagrama están en [ARCHITECTURE](ARCHITECTURE.md), el contrato
 en [AGENT_PROTOCOL](AGENT_PROTOCOL.md) y el plan de recursos en
@@ -68,6 +69,18 @@ npm run agents:demo
 Responde `{"mode":"simulated","status":"completed"}` y termina, sin `.env`,
 credenciales o red. [Composición, concurrencia y límites](AGENT_RUNTIME.md).
 
+Para HTTPS real entre procesos, sin claves propias ni llamadas públicas:
+
+```sh
+npm run agents:https:demo
+```
+
+Inicia un servidor independiente temporal, genera CA/certificado/token en memoria,
+ejecuta `echo.reply` desde el Core y limpia procesos. Devuelve
+`{"mode":"https-local-test","status":"completed","executions":1}`.
+La excepción de loopback existe únicamente en tests, fuera del build;
+TLS y hostname se comprueban. [Guía HTTPS](AGENT_RUNTIME.md#transporte-https-de-fase-1c).
+
 ## Telegram y configuración
 
 Para el bot propio sigue [TELEGRAM.md](TELEGRAM.md), incluida la configuración en
@@ -90,7 +103,9 @@ Alternativa compilada: `npm run build` y `npm run telegram:start`. Solo esos
 comandos se conectan a Telegram. No cambian tu bot, webhook ni preferencias.
 Ctrl+C cancela peticiones y esperas. El diagnóstico no requiere credenciales.
 
-No añadas secretos de agentes todavía: no hay conexiones ni variables nuevas.
+La demo HTTPS no necesita variables nuevas. Una composición servidor aprobada
+puede mapear explícitamente referencias de credenciales a variables propias;
+ver [resolver server-only](AGENT_RUNTIME.md#transporte-https-de-fase-1c).
 No publiques tokens, comprobantes ni datos financieros en logs/commits. La
 autorización sigue limitada a chats privados de los IDs permitidos; una allowlist
 plural no implementa aislamiento multiusuario.
@@ -103,8 +118,8 @@ src/
   channels/cli/        # diagnóstico
   channels/telegram/   # transporte existente
   infrastructure/      # entorno local
-  agents/              # protocolo, validación, Registry/Gateway en memoria y puerto falso
-tests/                 # Telegram falso, conservación documental y contratos de tipos
+  agents/              # protocolo, Registry/Gateway, transporte fake y HTTPS
+tests/                 # fakes, HTTPS local independiente y conservación documental
 docs/agents/           # requisitos de aplicaciones externas, sin implementación
 docs/history/          # snapshot financiero inmutable
 ```
@@ -114,7 +129,7 @@ eventos, correlación e idempotencia. Sus tipos siguen siendo puros; Fase 1B añ
 validación runtime estricta de ejecuciones y schemas de capacidades ficticias,
 reservas concurrentes, cancelación y estados inciertos. Los eventos todavía no se
 procesan. Se conservan fixtures estáticos, snapshot financiero y enlaces verificados.
-No hay HTTP con agentes, DB nueva, MCP ni cola distribuida en esta fase.
+HTTPS se verifica contra un proceso ficticio, sin DB nueva, MCP o cola distribuida.
 
 ## Herramientas y evidencia
 
@@ -124,6 +139,7 @@ No hay HTTP con agentes, DB nueva, MCP ni cola distribuida en esta fase.
 | `npm run build` / `npm start`                 | Compilar / ejecutar diagnóstico JS                         |
 | `npm run telegram` / `npm run telegram:start` | Bot TS / compilado con configuración propia                |
 | `npm run agents:demo`                         | Demostración local con transporte falso y sin credenciales |
+| `npm run agents:https:demo`                   | HTTPS real con proceso ficticio temporal, sin red pública  |
 | `npm run format` / `npm run format:check`     | Aplicar / comprobar formato                                |
 | `npm run lint` / `npm run typecheck`          | Lint y tipos, incluidos contratos estáticos                |
 | `npm test`                                    | Tests sin APIs reales ni claves                            |
@@ -138,7 +154,9 @@ los tests verifican hash e inclusión íntegra.
 - [Verificación de Fase 0](PHASE_0_VALIDATION.md), registro histórico.
 - [Verificación de Fase 1A](PHASE_1A_VALIDATION.md), automatizada y aceptación reportada.
 - [Verificación de Fase 1A.5](PHASE_1A5_VALIDATION.md), registro histórico de arquitectura.
-- [Verificación de Fase 1B](PHASE_1B_VALIDATION.md), comandos y límites actuales.
+- [Verificación de Fase 1B](PHASE_1B_VALIDATION.md), registro del Gateway en memoria.
+- [Verificación de Fase 1C](PHASE_1C_VALIDATION.md), HTTPS real local y pruebas.
+- [Plan AWS](AWS_DEPLOYMENT_PLAN.md), costos, créditos y preparación sin desplegar.
 - [Instrucciones Codex](AGENTS.md) y [flujo de Git](GIT_WORKFLOW.md).
 - [Prompt de Fase 1B](prompts/PHASE_1B_PROMPT.md).
 

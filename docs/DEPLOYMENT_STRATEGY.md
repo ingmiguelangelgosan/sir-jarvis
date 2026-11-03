@@ -1,154 +1,137 @@
-# Estrategia de infraestructura — propuesta sin desplegar
+# Estrategia de infraestructura — AWS, sin desplegar
 
-Decisión inicial: **DigitalOcean Droplet con Ubuntu LTS y Docker Compose**,
-2 GB de RAM y 1 vCPU como punto de partida para Jarvis y hasta dos agentes
-ligeros. Objetivo de infraestructura básica: **USD 25/mes**. Son capacidad y
-presupuesto propuestos, no contratación, autorización para facturar ni rendimiento
-medido. No se crean cuentas, VMs, Dockerfiles, despliegues o recursos en esta fase.
+**Decisión del operador, Fase 1C (2026-11-02): AWS es el proveedor principal
+durante la etapa inicial.** Amazon Lightsail con Ubuntu LTS, Docker y Docker
+Compose es la propuesta inicial. Sustituye la preferencia anterior por
+DigitalOcean; no cambia el Core ni autoriza compras, despliegues o facturación.
+No se ha accedido a la cuenta AWS ni creado recursos, presupuestos o IaC.
 
-## Independencia y colocación
+El operador reporta una cuenta **AWS Paid Plan**, créditos promocionales nominales
+de **hasta USD 200** y un horizonte de planificación de **seis meses**. Saldo
+activo, productos elegibles y vencimientos reales siguen **sin verificar**:
+deben comprobarse en AWS Billing antes de cualquier despliegue. El horizonte del
+proyecto no es la fecha de vencimiento de un crédito. Una cuenta Paid Plan puede
+generar cargos de bolsillo cuando el crédito no cubre el consumo.
 
-Jarvis sigue siendo un servicio modular; no se divide su Core, Registry y Gateway
-en microservicios. Compose podrá colocar en el mismo host contenedores de agentes
-con repositorio, imagen, pruebas, versión y ciclo de vida propios. No compartir
-código interno, credenciales ni volúmenes de dominio. Cada agente puede migrar a
-otro proveedor sin cambiar el contrato de Jarvis.
+El [plan operativo AWS](AWS_DEPLOYMENT_PLAN.md) contiene los requisitos de cuenta,
+región, seguridad, presupuesto, recuperación, migración y autorización previa.
 
-La persistencia se elegirá según consumo y garantías necesarias. Una instancia
-pequeña puede evaluar almacenamiento local; concurrencia y durabilidad pueden
-justificar PostgreSQL. Las bases de cada agente siguen aisladas y gestionadas por
-ese proyecto, aunque eventualmente compartan un servidor con usuarios separados.
-No se añade DB a Jarvis para anticipar la futura de Finance Agent.
+## Capacidad y precios de referencia
 
-## Costos orientativos y autorizaciones
+Referencia pública consultada el **2026-11-02**, Linux/Unix de propósito general
+con IPv4 pública. No se aplica una promoción ni se infiere disponibilidad regional:
 
-Referencia consultada el **2026-11-02**: la tabla Basic Regular publica 2 GiB/1 vCPU
-por USD 12/mes, 4 GiB/2 vCPU por USD 24 y 8 GiB/4 vCPU por USD 48.
-Son precios de la VM, no del sistema completo; revisar región, plan y tarifa al
-contratar. [Precios oficiales de Droplets](https://www.digitalocean.com/pricing/droplets).
+| Uso propuesto                               | RAM  | vCPU | SSD   | Referencia base mensual |
+| ------------------------------------------- | ---- | ---- | ----- | ----------------------- |
+| Inicio                                      | 2 GB | 2    | 60 GB | USD 12                  |
+| Ampliación solo con métricas y autorización | 4 GB | 2    | 80 GB | USD 24                  |
 
-| Etapa propuesta | Carga orientativa                  | Evaluación de host                    | Estimación total de infraestructura         |
-| --------------- | ---------------------------------- | ------------------------------------- | ------------------------------------------- |
-| 1               | Jarvis + hasta 2 agentes ligeros   | 2 GB / 1 vCPU                         | USD 15–25/mes; objetivo inicial 25          |
-| 2               | Jarvis + aproximadamente 4 agentes | Evaluar 4 GB si métricas lo requieren | USD 30–50/mes; requiere nuevo presupuesto   |
-| 3               | Jarvis + 6–8 agentes               | Evaluar 8 GB o separar cargas         | Dimensionar con métricas y cotización nueva |
+Son precios del bundle, no del sistema completo. La transferencia incluida y sus
+condiciones dependen de región; confirmar plan, moneda, impuestos y tarifa en la
+cotización final. [Precios oficiales](https://aws.amazon.com/lightsail/pricing/) y
+[especificaciones de bundles](https://docs.aws.amazon.com/lightsail/latest/userguide/amazon-lightsail-bundles.html).
 
-Los totales son estimaciones del proyecto, no precios garantizados. Contemplar
-backups, almacenamiento, transferencia, DNS/dominio cuando corresponda, impuestos
-y margen. **No incluyen APIs de IA ni otros servicios comerciales de los agentes**;
-su autorización y presupuesto son independientes. Las compras o ampliaciones
-requieren aprobación concreta, incluso si una métrica supera un umbral.
+## Proyección ilustrativa de seis meses
 
-El objetivo de USD 25 no es un tope duro del proveedor. Alertas de presupuesto no
-implican suspensión automática. Reservar gastos previstos, revisar consumo y
-topes disponibles y detener nuevas operaciones variables ante incertidumbre;
-una VM contratada o almacenamiento retenido puede seguir generando cargos hasta
-ser gestionado expresamente. No activar facturación para probar este documento.
+| Periodo                             | Hipótesis de VPS                                                 | Bruto base del periodo |
+| ----------------------------------- | ---------------------------------------------------------------- | ---------------------- |
+| Meses 1–2                           | 2 GB, USD 12/mes                                                 | USD 24                 |
+| Meses 3–4                           | 2 GB, USD 12/mes                                                 | USD 24                 |
+| Meses 5–6                           | Evaluar 4 GB; escenario de USD 24/mes                            | USD 48                 |
+| Total VPS del escenario             | Cuatro meses a 12 y dos a 24                                     | **USD 96**             |
+| Margen de planificación para extras | Backups, transferencia, almacenamiento, impuestos y contingencia | **USD 54**             |
+| Presupuesto total de planificación  | VPS más margen, sin contratación                                 | **USD 150**            |
+| Reserva nominal fuera del plan      | 200 nominales menos 150 planificados                             | **USD 50**             |
+
+Subir a 4 GB no está programado: exige mediciones y aprobación. Si se mantienen
+2 GB los seis meses, el VPS base sería USD 72. Los USD 54 son margen, no una
+cotización ni capacidad de crédito confirmada. APIs de IA y otros consumos de
+agentes no están autorizados por este plan.
+
+Separar en el seguimiento **costo bruto**, **crédito efectivamente aplicado** y
+**gasto neto de bolsillo**. Para USD 150 brutos, si Billing aplicase 150 de crédito
+elegible y vigente el neto sería 0; si solo aplicase 100, sería 50; sin cobertura,
+sería 150. Son escenarios aritméticos, no predicción de factura. Cargos fuera de
+la estimación o no elegibles se suman. La reserva nominal de 50 no se considera
+dinero disponible hasta verificar cada crédito en Billing.
+
+## Independencia, contenedores y red
+
+Jarvis sigue siendo un monolito modular. Cada agente conserva aplicación, imagen,
+repositorio, pruebas, datos, permisos y ciclo de vida propios, aunque comparta host.
+No dividir Registry/Gateway/Core en microservicios. No compartir bases de dominio,
+volúmenes o credenciales entre proyectos ni añadir SDK AWS al Core.
+
+El diseño futuro usa imágenes fijadas, usuario sin privilegios, límites de CPU/RAM,
+volúmenes separados y redes por integración. No montar el socket Docker ni
+directorios completos del host. Telegram mantiene long polling saliente, sin
+puerto público de bot. No abrir DB, Dispatcher o webhooks de agentes en esta fase.
+Los agentes se comunican por HTTPS/JSON versionado con autenticación y allowlist.
+
+La colocación privada requiere diseñar egreso y DNS junto con la protección SSRF.
+El transporte permite al operador registrar IP RFC1918/ULA **exactas por origen**;
+su opción predeterminada admite solo destinos públicos validados. No se permiten
+rangos privados generales, loopback, link-local o metadata en producción. Mantener
+TLS válido para el nombre original incluso en red privada. La excepción de
+loopback de tests no se hereda a producción. Probar esta composición en el host
+antes de contratar; no hay redes AWS o Compose desplegados.
+[Compose en producción](https://docs.docker.com/compose/how-tos/production/).
 
 ## Dimensionamiento medido
 
-El número de agentes no determina los recursos: un proceso que consulta poco
-no consume como OCR, scraping con navegador o trabajos intensivos. No ejecutar
-modelos locales en el alcance inicial. En 2 GB, reservar primero memoria para
-Ubuntu, Docker, Jarvis, TLS y buffers; medir lo restante antes de asignar agentes
-y DB. No se garantiza que dos agentes concretos quepan.
+El número de agentes no determina la capacidad. Reservar memoria para Ubuntu,
+Docker, Jarvis, TLS y buffers antes de asignar carga. OCR, navegadores, DB o trabajos
+intensivos necesitan mediciones propias; no ejecutar modelos locales al inicio.
 
-| Métrica          | Señal orientativa de revisión              | Respuesta antes de ampliar                          |
-| ---------------- | ------------------------------------------ | --------------------------------------------------- |
-| CPU              | p95 >70% durante ventanas de 15 min        | Perfilar tareas y limitar concurrencia              |
-| Memoria          | >80% sostenida, OOM o reinicios            | Medir working set, buffers y límites por contenedor |
-| Frecuencia       | Tareas acumulan ejecuciones                | Espaciar trabajo autorizado y revisar duración      |
-| Concurrencia     | Picos superan capacidad o conexiones       | Limitar admisión y presupuestos simultáneos         |
-| Latencia         | p95 excede objetivo definido por capacidad | Separar espera remota de CPU local                  |
-| Usuarios activos | Más sujetos/sesiones y tráfico             | Diseñar aislamiento antes de ampliar acceso         |
-| Proveedores      | Consumo/cargos fuera de lo reservado       | Suspender rutas variables y revisar autorización    |
+| Métrica      | Señal orientativa de revisión                  | Primera respuesta                          |
+| ------------ | ---------------------------------------------- | ------------------------------------------ |
+| CPU          | p95 superior a 70% en ventanas de 15 min       | Perfilar y limitar concurrencia            |
+| RAM          | Más de 80% sostenido, OOM o reinicios          | Medir working set y límites por proceso    |
+| Disco        | Crecimiento sin retención o poco espacio libre | Acotar logs/cachés y revisar retención     |
+| Latencia     | p95 supera el objetivo por capacidad           | Separar espera remota de cómputo           |
+| Concurrencia | Conexiones exceden capacidad                   | Limitar admisión antes de ampliar          |
+| Costo        | Consumo fuera de lo planificado                | Suspender rutas variables y revisar causas |
 
-Son umbrales iniciales de observación, no automatizaciones o benchmarks aprobados.
-Registrar al menos un ciclo representativo de carga y el costo real de tareas.
-Evaluar optimización, ejecución bajo demanda o separar un agente pesado antes de
-subir toda la VM. Revisar backups, restauración y seguridad junto con capacidad.
+Son umbrales propuestos, no benchmarks ni automatizaciones. Medir un ciclo
+representativo; optimizar o separar un agente pesado antes de ampliar todo el host.
 
-## Docker Compose futuro
+## Control financiero propuesto
 
-Preparar imágenes por proyecto, versiones fijadas y builds reproducibles. Dar
-límites de memoria/CPU y privilegios mínimos, usuario no root cuando sea posible,
-health checks locales sin secretos y redes privadas por integración. Los datos
-durables usan volúmenes separados; no montar sockets Docker ni carpetas completas
-del host en agentes. No abrir la DB a Internet.
+Preparar, tras autorización futura, un presupuesto mensual **bruto de USD 25**
+con alertas reales al 50%, 80% y 100%, y previsión superior al 100%. Excluir créditos
+y reembolsos del cálculo bruto para que no oculten consumo. Revisar por separado
+créditos, vencimientos, servicio y región. El escenario de 4 GB deja solo USD 1
+de margen mensual: revisar el presupuesto antes de aprobarlo; el total de 150 no
+autoriza superar el control mensual. [Opciones de AWS Budgets](https://docs.aws.amazon.com/cost-management/latest/userguide/budgets-best-practices.html).
 
-Planificar reinicios con backoff, límite de fallos/alerta y parada ordenada. Un
-token inválido no debe causar un bucle silencioso; validar configuración antes de
-activar el servicio. Probar reinicio del host, caída de red, recuperación y rollback
-de imagen sin reejecutar efectos inciertos. Compose no aporta alta disponibilidad
-del host ni garantiza consistencia de datos por sí solo.
-[Guía de Compose en producción](https://docs.docker.com/compose/how-tos/production/).
+Las alertas **no son topes duros**: la información de facturación y las notificaciones
+pueden retrasarse. No prometen detener cargos. [Limitaciones de actualización](https://docs.aws.amazon.com/cost-management/latest/userguide/budgets-managing-costs.html).
+No crear presupuestos reales, acciones automáticas, SNS ni reportes pagos ahora.
 
-No hay un Compose operativo en el repo todavía. Su implementación y prueba
-pertenecen a Fase 5, después de verificar las necesidades reales de Registry,
-Gateway, agentes y persistencia. No copiar ejemplos como un despliegue ya validado.
+Evitar inicialmente NAT Gateway, balanceadores innecesarios, RDS administrado,
+direcciones IP o recursos públicos sin uso, almacenamiento sin retención, logging
+pago sin límites y servicios de IA de pago, incluido Bedrock. No activar servicios
+para obtener créditos adicionales.
 
-## Secretos y red
+## Alternativas y portabilidad
 
-- Credenciales propias por integración/instancia; permisos mínimos, rotación y
-  posibilidad de revocar sin recompilar. No hornear secretos en imágenes o Git.
-- En el código actual, variables de entorno server-only y `.env` local excluido
-  de Git. Para Compose, evaluar archivos montados como secrets con acceso por
-  servicio y permisos del host; no asumir que quedan cifrados automáticamente.
-  El soporte de lectura `*_FILE` no existe aún: debe implementarse y probarse
-  antes de elegirlo. [Secrets de Compose](https://docs.docker.com/compose/how-tos/use-secrets/).
-- Acceso SSH por claves y fuentes autorizadas, actualizaciones de Ubuntu/Docker,
-  firewall y separación de redes. Planear TLS en ingress/egress y validar certificados.
-- Telegram usa polling saliente y no requiere abrir un puerto de bot. Los futuros
-  callbacks HTTPS pasan por ingress limitado, autenticación, replay y cuota;
-  ninguna exposición nueva se hace en esta fase.
-- Endpoints solo registrados por el operador, sin redirects o destinos del
-  mensaje. Agentes externos no reciben IDs de chat ni claves de otros agentes.
+| Proveedor/servicio | Cuándo evaluarlo                                      | Condición                                                                  |
+| ------------------ | ----------------------------------------------------- | -------------------------------------------------------------------------- |
+| AWS EC2            | Red, cómputo o control que Lightsail no resuelva      | Cotizar cómputo, discos, IP y transferencia por separado                   |
+| AWS Lambda         | Agentes stateless con ejecuciones breves bajo demanda | Evaluar límites, arranques, red y costo; no alojar polling continuo        |
+| DigitalOcean       | Migración futura a un VPS equivalente                 | Imágenes y volúmenes portables; nueva cotización                           |
+| Google Cloud Run   | Agentes con carga intermitente y HTTPS                | Concurrencia e instancias máximas; escalado a cero no garantiza costo cero |
 
-## Backups y restauración
+Las alternativas no son integraciones activas. El Core y el protocolo permanecen
+ajenos a AWS. [EC2](https://aws.amazon.com/ec2/pricing/),
+[Lambda](https://aws.amazon.com/lambda/pricing/),
+[Droplets](https://www.digitalocean.com/pricing/droplets) y
+[Cloud Run](https://cloud.google.com/run/pricing) requieren revisar sus condiciones
+cuando se elijan. El long polling de Telegram no equivale a una petición bajo demanda.
 
-Definir inventario de configuración, permisos, suscripciones, estados pendientes,
-deduplicación y volúmenes. Separar las copias internas de cada agente y su
-responsable. No usar un dump financiero como DB de Jarvis. Cifrar copias privadas,
-restringir acceso y guardar una copia fuera del host, con retención y costo
-aprobados; no subir secretos a backups sin protección equivalente.
+Backups cifrados, restauración medida, secretos por integración y exportación de
+configuración se detallan en el [plan AWS](AWS_DEPLOYMENT_PLAN.md). Ni backup ni
+reinicio convierten la deduplicación actual en persistencia durable: conciliar
+efectos inciertos antes de reanudar tráfico.
 
-Objetivos iniciales propuestos, no comprobados: RPO 24 h y RTO 4 h, sujetos al
-uso real. Probar periódicamente restauración en un entorno aislado autorizado,
-incluyendo permisos, claves, pendientes y deduplicación. Antes de reanudar tráfico,
-conciliar operaciones y entregas inciertas: un backup antiguo puede haber perdido
-IDs recientes y no justifica reenviar pagos o notificaciones automáticamente.
-Registrar la prueba y sus tiempos; una copia que nunca se restaura no demuestra
-recuperación. No borrar datos originales por hacer backup.
-
-## Observabilidad y portabilidad
-
-Métricas de CPU/RAM/reinicios, latencia y errores por capacidad, tamaño de inbox,
-duplicados, entregas inciertas y costos agregados. Logs con códigos y referencias
-mínimas, sin cuerpos, credenciales, nombres, IDs de Telegram o datos financieros.
-Retención y acceso definidos; evitar agentes de telemetría pagos por defecto.
-
-Exportar configuración no secreta, documentar inyección de secretos y probar
-restore en una VM equivalente. Usar imágenes y volúmenes estándar; no acoplar
-protocolos a IDs de DigitalOcean, a una DB compartida o a un servicio propietario.
-Cada agente conserva su procedimiento independiente de despliegue y recuperación.
-
-## Cloud Run como opción bajo demanda
-
-Evaluar Cloud Run para agentes stateless invocados por HTTPS, con trabajo acotado,
-concurrencia y número máximo de instancias definidos. Escalado a cero puede reducir
-recursos ociosos, pero arranque, cómputo, solicitudes, red y servicios relacionados
-pueden facturarse. No asumir costo cero ni una garantía de privacidad por nivel
-gratuito. [Precios oficiales de Cloud Run](https://cloud.google.com/run/pricing).
-
-El modo de facturación y los mínimos de instancias afectan CPU disponible y costo
-en reposo; un consumidor continuo o scheduler no equivale a una petición bajo
-demanda. No mover el polling continuo de Telegram a un servicio escalado a cero
-sin otro diseño. [Facturación](https://docs.cloud.google.com/run/docs/configuring/billing-settings)
-y [autoscaling](https://docs.cloud.google.com/run/docs/about-instance-autoscaling).
-
-La autenticación, secretos y presupuesto deben verificarse antes de habilitar
-cualquier servicio de Google Cloud; no se crea proyecto ni cuenta de facturación.
-Para trabajos más largos evaluar alternativas en su fase, sin introducir ahora
-una cola distribuida o infraestructura adicional.
-
-Esta estrategia aplica [PRODUCT_RULES](PRODUCT_RULES.md) ORC-03/04/06/11/12.
+Esta decisión aplica [PRODUCT_RULES](PRODUCT_RULES.md) ORC-01/03/04/06/07/08/11/12.

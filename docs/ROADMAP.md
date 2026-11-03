@@ -36,8 +36,9 @@ documentos/tipos son coherentes, enlaces y tests pasan, Telegram conserva su
 comportamiento y el PR queda para revisión manual. No hay Registry/Gateway
 funcionales, conexiones a agentes, DB nueva, MCP, IA ni infraestructura desplegada.
 
-## Fase 1B — primer Registry y Gateway: IMPLEMENTADOS CON FAKE
+## Fase 1B — primer Registry y Gateway: FUSIONADA, CON FAKE
 
+PR #4 fusionado en main, verificado antes de iniciar Fase 1C.
 Registro local administrado, habilitación y permisos por sujeto/capacidad;
 manifest/schema versionados y rechazo por defecto. Gateway orquestado mediante
 un transporte falso inyectado, correlación, estados, deadline e idempotencia
@@ -56,13 +57,18 @@ inválidos, permisos insuficientes, deadline y duplicados se prueban sin red ni
 cargos. No interpretar memoria como protección durable de producción.
 [Prompt recomendado](prompts/PHASE_1B_PROMPT.md).
 
-## Fase 1C — agente ficticio independiente y HTTPS
+## Fase 1C — agente ficticio independiente y HTTPS: IMPLEMENTADA LOCALMENTE
 
-Probar el contrato contra una aplicación ficticia que arranque y se pruebe sin
-Jarvis, en un proyecto independiente autorizado. Agregar el transporte HTTPS,
-autenticación, validación real de schemas/respuestas, timeout, cancelación y
-reintentos seguros. Solo resultados síncronos o polling autorizado de operaciones
-en este corte; no abrir aún notificaciones externas sin persistencia durable.
+Transporte HTTPS real con Bearer server-only, TLS, allowlist, DNS/IP fijada,
+rechazo de SSRF/redirects y validación estricta. Demo `agents:https:demo` contra
+un fixture independiente ejecutado como otro proceso, sin imports de Jarvis ni
+nuevo repositorio. Conserva idempotencia concurrente, cancelación e incertidumbre
+de Fase 1B, con resultados síncronos o polling autorizado. No hay notificaciones
+externas, agentes de dominio o despliegue. [Validación](PHASE_1C_VALIDATION.md).
+
+AWS/Lightsail sustituye la preferencia anterior por DigitalOcean, solo como
+decisión documental. [Estrategia](DEPLOYMENT_STRATEGY.md) y [plan AWS](AWS_DEPLOYMENT_PLAN.md)
+separan costo bruto, créditos y neto; cuenta/créditos aún no verificados.
 
 Aceptación: compatibilidad comprobada entre procesos y versiones, sin importar
 código interno del otro proyecto. Cualquier creación de repositorio o alojamiento
@@ -93,8 +99,9 @@ Sin proveedor apto o presupuesto, falla cerrado. Pruebas con adaptadores falsos.
 ## Fase 5 — despliegue, monitoreo y escalabilidad
 
 Implementar y probar Docker/Compose, secretos, TLS/red, backups/restauración,
-reinicio y métricas; luego dimensionar según consumo. DigitalOcean/Cloud Run
-son opciones documentadas, no recursos ya contratados. Revisar costos y solicitar
+reinicio y métricas; luego dimensionar según consumo. AWS/Lightsail es la propuesta
+principal; EC2/Lambda y DigitalOcean/Cloud Run son alternativas documentadas,
+sin recursos contratados. Revisar costos y solicitar
 autorización concreta antes de cualquier contratación o activación de facturación.
 
 ## Fase 6 — web y funciones adicionales

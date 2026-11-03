@@ -1,7 +1,8 @@
-# Registry y Gateway — Fase 1B
+# Registry y Gateway — Fases 1B y 1C
 
-Implementación local funcional con transporte falso inyectado. No hay HTTP con
-agentes, servicio de agente ficticio, integración nueva con Telegram, DB ni IA.
+Registry/Gateway funcionales en memoria con transporte falso o HTTPS inyectado.
+HTTPS se verifica contra un proceso de testing independiente; no hay agentes de
+dominio, integración nueva con Telegram, DB ni IA.
 El contrato de mensajes sigue siendo [protocolo 1.0](AGENT_PROTOCOL.md).
 
 ## Demo sin credenciales
@@ -46,7 +47,7 @@ comandos Telegram conservan su comportamiento anterior.
    envelope y payload antes de reservar o despachar. Las consultas comprueban
    también la capacidad de la operación pendiente original. Solo pasa el mensaje
    validado al [puerto de transporte](../src/agents/transport.ts), sin conexiones
-   ni referencias de secretos. En esta fase todas las composiciones usan fakes.
+   ni referencias de secretos. Fase 1C puede inyectar el adaptador HTTPS.
 
 No existe un adaptador Telegram que convierta texto en estas solicitudes; no se
 añaden comandos ficticios al bot. Los alias de sujeto son contexto interno, no
@@ -67,9 +68,8 @@ estado y schema de output. Errores remotos se mapean a mensajes locales seguros;
 no se conservan excepciones, cuerpos o URLs en errores. No hay logs de payloads.
 
 La URL configurada es un origen HTTPS sin ruta, query, fragmento o credenciales,
-presente en la lista permitida. La validación de DNS/IP al conectar, TLS real,
-headers de autenticación y redirects corresponde al futuro transporte de Fase 1C.
-No se afirma protección de una conexión que todavía no existe.
+presente en la lista permitida. El transporte HTTPS añade validación DNS/IP,
+TLS y autenticación descritas abajo, sin cambiar el Gateway ni conectar Telegram.
 
 ## Idempotencia y concurrencia
 
@@ -145,5 +145,123 @@ Gateway. Tras cerrar/reiniciar se pierde **todo** el estado en memoria. Esta fas
 no satisface retención durable, idempotencia de dominio ni exactamente-una-vez.
 
 Se aplican [PRODUCT_RULES](PRODUCT_RULES.md) ORC-01/02/03/04/05/06/07/08/12.
-Los datos y reglas de agentes siguen fuera de Jarvis. HTTP real espera Fase 1C;
-eventos autenticados, replay y persistencia durable, Fase 3.
+Los datos y reglas de agentes siguen fuera de Jarvis. Eventos autenticados,
+replay y persistencia durable esperan Fase 3.
+
+## Transporte HTTPS de Fase 1C
+
+[HttpsAgentTransport](../src/agents/https-transport.ts) implementa el mismo puerto;
+el caso de uso y Gateway permanecen iguales. Composición servidor local explícita:
+
+```ts
+// registry/catalog deben incluir registro, schemas y permisos aprobados.
+const network = new HttpsEndpointPolicy([
+  { origin: 'https://echo.example.invalid' },
+]);
+const credentials = new EnvironmentAgentCredentials({
+  'echo-request': 'JARVIS_ECHO_BEARER',
+});
+const transport = new HttpsAgentTransport(
+  registry,
+  catalog,
+  network,
+  credentials,
+);
+const gateway = new InMemoryAgentGateway(registry, catalog, transport, {
+  resultCacheMs: 60_000,
+});
+const core = new AgentExecutionService(registry, gateway);
+// finally: gateway.close(); transport.close();
+```
+
+Los constructores están en `src/agents/` y `AgentExecutionService` en `src/app/`.
+El ejemplo es composición, no un comando de producción o endpoint activo.
+`request_credential_ref` del registro debe ser `echo-request`. El operador inyecta
+su propio `JARVIS_ECHO_BEARER` en el proceso servidor por un mecanismo seguro; no
+se imprime ni se escribe un token en comandos/documentación. La clase no lee `.env`,
+no descubre variables, no guarda el token y vuelve a resolverlo en cada intento
+para permitir rotación. Admite otro resolver server-only sin SDK en el Core.
+
+Seguridad implementada:
+
+- Solo orígenes HTTPS exactos en Registry y en `HttpsEndpointPolicy`, sin rutas,
+  credenciales, query, fragmentos, aliases localhost o metadata. Paths fijos:
+  `POST /v1/execute` y `GET /v1/operations/{id}`; no se toma destino del mensaje.
+- Resolver DNS en cada intento, validar **todas** sus respuestas y fijar una IP
+  en el lookup de la conexión. Una respuesta mixta pública/privada no autorizada
+  se rechaza. No hay fallback a otra dirección, segundo lookup, pool compartido,
+  proxies ambientales o redirects. El socket debe coincidir en IP y puerto.
+- Negar loopback, link-local, metadata cloud y rangos especiales IPv4/IPv6; IPv6
+  solo unicast global no especial por defecto. `privateAddresses` permite solo IPs
+  RFC1918/ULA **exactas por origen**, administradas explícitamente. Metadata IPv6
+  de AWS/EKS y Google nunca es excepción. No admite rangos ni una bandera genérica
+  para desactivar SSRF. Las listas son conservadoras y requieren mantenimiento.
+- TLS mínimo 1.2, verificación de cadena y nombre original siempre activas.
+  Puede configurarse una CA privada, no opciones TLS arbitrarias. Headers Bearer
+  y cuerpo se envían solo después de verificar `secureConnect` y peer. `NODE_DEBUG`
+  no vacío o tracing http/https/tls habilitado hace fallar la composición para no
+  exponer headers mediante diagnóstico nativo. No activar tracing de tráfico/TLS.
+- Headers limitados a 16 KiB; respuesta máxima 64 KiB incluso chunked; UTF-8 fatal,
+  JSON sin claves repetidas, Content-Type JSON, sin compresión y framing completo.
+  Validar envelope, versión, campos, schema/contexto y coherencia status HTTP antes
+  de aceptar output. Errores remotos/raw no se imprimen ni conservan.
+- Un 429/503 crudo no autoriza retries. Se exige `failed` válido y contextualizado;
+  `Retry-After` positivo en segundos o fecha HTTP se combina con el body tomando
+  el máximo. Inválido o mayor a 24 h se rechaza; nunca acortar por el deadline.
+  Solo el Gateway aplica los reintentos seguros de Fase 1B.
+
+Límites adicionales: timeout total del transporte de hasta 10 s, incluida resolución
+DNS/credenciales/TLS/cuerpo; respeta deadline y AbortSignal. Máximo 32 conexiones
+activas y resoluciones subyacentes por defecto, configurable hasta 256. Un lookup
+del SO puede continuar tras cancelación: conserva su cupo hasta finalizar, y no
+despacha después. Índice de pending máximo 256 por defecto (hasta 4096), contexto
+original y autorización revalidados al consultar; no acepta IDs arbitrarios ni
+renueva las 24 h. Si se llena, falla cerrado sin expulsar inciertos. Se vacía al
+cerrar. No conserva inputs/outputs en ese índice ni registra referencias sensibles.
+
+El transporte distingue `not-started` antes de enviar y `uncertain` después.
+El Gateway ya marca un posible efecto al invocar el puerto: conserva su clasificación
+**conservadora**, incluso si el timeout ocurrió durante DNS o TLS. Ninguno de estos
+estados demuestra fallo/cancelación remota. No cambia idempotencia por esta diferencia.
+
+Fuentes técnicas: [HTTPS de Node 24](https://nodejs.org/docs/latest-v24.x/api/https.html),
+[TLS de Node 24](https://nodejs.org/docs/latest-v24.x/api/tls.html),
+[IANA IPv4](https://www.iana.org/assignments/iana-ipv4-special-registry/),
+[IANA IPv6](https://www.iana.org/assignments/iana-ipv6-special-registry/).
+
+## Agente HTTPS independiente de prueba
+
+```sh
+npm ci
+npm run agents:https:demo
+node --test tests/agent-https.test.ts tests/agent-network.test.ts
+```
+
+En PowerShell usa `npm.cmd` si corresponde. La demo responde:
+
+```json
+{ "mode": "https-local-test", "status": "completed", "executions": 1 }
+```
+
+[run-agent-https-demo.ts](../tests/run-agent-https-demo.ts) inicia por IPC un **proceso
+Node separado** con [echo-agent.mjs](../tests/fixtures/echo-agent.mjs). El servidor
+solo usa builtins y bytes del protocolo, sin imports de Jarvis, de su dominio o Zod;
+puede iniciarse independientemente por un supervisor IPC. Para probarlo sin Core ni
+Gateway, importar `startEchoAgent` de [https-process.ts](../tests/https-process.ts),
+que devuelve origen/CA/token en memoria, `stats()`, `diagnosticsBytes()` y `close()`;
+un cliente HTTPS independiente puede usar esos valores sin importaciones de `src/`.
+La fixture exige `jarvis-demo`/`demo.echo`/`owner-demo` y `echo.reply` versión 1.0.
+
+El helper genera CA y certificado ECDSA efímeros con `node:crypto`, sin OpenSSL CLI,
+archivos de claves ni credenciales versionadas. El hijo recibe un entorno mínimo,
+sin tokens del operador o flags de diagnóstico. La política de loopback es un objeto
+definido **solo en tests**, para `echo.test`/puerto exacto/127.0.0.1. Esa composición,
+PKI y fixture quedan fuera de `dist/`; no hay flags/env de bypass en producción.
+No se desactiva TLS ni la validación de hostname para ejecutar la demo.
+
+El servidor valida Bearer, envelope/input antes del efecto y reserva claves
+concurrentes en memoria; es un echo de lectura, sin dominio. Su retención y estado
+temporal no demuestran una implementación de agente durable. Se apaga y descarta
+al finalizar. Las pruebas inyectan fallos y comparan contadores, sin red pública,
+credenciales reales, repositorios nuevos, contenedores o servicios comerciales.
+No es una aplicación de producción ni un deployment AWS.
