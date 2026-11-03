@@ -28,9 +28,10 @@ mueven al núcleo. Sus [reglas completas](agents/FINANCE_AGENT_SPEC.md), la
 
 Fase 0 y Telegram de Fase 1A implementados y fusionados. El operador reportó
 aceptación real exitosa el 2026-11-02; los tests automatizados usan Telegram
-simulado. Fase 1A.5 aporta diseño y tipos, sin cambiar las respuestas o comandos
-del bot. Ningún agente externo está conectado. Registry/Gateway, eventos durables,
-IA y persistencia siguen pendientes. No se contrataron servicios.
+simulado. Fase 1B aporta Registry/Gateway en memoria, validadores y un caso de uso
+autorizado con transporte falso, sin cambiar respuestas o flujos del bot. Ningún
+agente externo está conectado. HTTP, eventos durables, IA y persistencia siguen
+pendientes. No se contrataron servicios.
 
 La arquitectura y su diagrama están en [ARCHITECTURE](ARCHITECTURE.md), el contrato
 en [AGENT_PROTOCOL](AGENT_PROTOCOL.md) y el plan de recursos en
@@ -58,7 +59,14 @@ modificar la política. Las versiones fijadas están en [package.json](../packag
 `dev`, `diagnose` y `start` siguen imprimiendo el diagnóstico de Fase 1A y terminan.
 La capacidad Telegram indica `available-not-connected`: no prueba conectividad
 ni revela token. Finanzas/persistencia aparecen pendientes e IA deshabilitada.
-No se anuncia Registry/Gateway funcional porque solo hay interfaces.
+La nueva ejecución simulada se demuestra por separado, sin cambiar ese contrato:
+
+```sh
+npm run agents:demo
+```
+
+Responde `{"mode":"simulated","status":"completed"}` y termina, sin `.env`,
+credenciales o red. [Composición, concurrencia y límites](AGENT_RUNTIME.md).
 
 ## Telegram y configuración
 
@@ -95,30 +103,32 @@ src/
   channels/cli/        # diagnóstico
   channels/telegram/   # transporte existente
   infrastructure/      # entorno local
-  agents/protocol.ts   # interfaces y tipos puros, sin conexiones
+  agents/              # protocolo, validación, Registry/Gateway en memoria y puerto falso
 tests/                 # Telegram falso, conservación documental y contratos de tipos
 docs/agents/           # requisitos de aplicaciones externas, sin implementación
 docs/history/          # snapshot financiero inmutable
 ```
 
 El contrato describe solicitudes, resultados completados/pendientes/fallidos,
-eventos, correlación e idempotencia. Sus tipos no validan JSON en ejecución.
-Se prueban con fixtures ficticios en typecheck; las reglas financieras se conservan
-literalmente y los enlaces locales se revisan mediante tests. No hay schema
-ejecutable del protocolo, DB nueva, MCP ni cola distribuida en esta fase.
+eventos, correlación e idempotencia. Sus tipos siguen siendo puros; Fase 1B añade
+validación runtime estricta de ejecuciones y schemas de capacidades ficticias,
+reservas concurrentes, cancelación y estados inciertos. Los eventos todavía no se
+procesan. Se conservan fixtures estáticos, snapshot financiero y enlaces verificados.
+No hay HTTP con agentes, DB nueva, MCP ni cola distribuida en esta fase.
 
 ## Herramientas y evidencia
 
-| Comando                                       | Resultado esperado                          |
-| --------------------------------------------- | ------------------------------------------- |
-| `npm run dev` / `npm run diagnose`            | Diagnóstico desde TS                        |
-| `npm run build` / `npm start`                 | Compilar / ejecutar diagnóstico JS          |
-| `npm run telegram` / `npm run telegram:start` | Bot TS / compilado con configuración propia |
-| `npm run format` / `npm run format:check`     | Aplicar / comprobar formato                 |
-| `npm run lint` / `npm run typecheck`          | Lint y tipos, incluidos contratos estáticos |
-| `npm test`                                    | Tests sin APIs reales ni claves             |
-| `npm run check`                               | Formato, lint, tipos, tests y build         |
-| `npm audit`                                   | Consulta de vulnerabilidades conocidas      |
+| Comando                                       | Resultado esperado                                         |
+| --------------------------------------------- | ---------------------------------------------------------- |
+| `npm run dev` / `npm run diagnose`            | Diagnóstico desde TS                                       |
+| `npm run build` / `npm start`                 | Compilar / ejecutar diagnóstico JS                         |
+| `npm run telegram` / `npm run telegram:start` | Bot TS / compilado con configuración propia                |
+| `npm run agents:demo`                         | Demostración local con transporte falso y sin credenciales |
+| `npm run format` / `npm run format:check`     | Aplicar / comprobar formato                                |
+| `npm run lint` / `npm run typecheck`          | Lint y tipos, incluidos contratos estáticos                |
+| `npm test`                                    | Tests sin APIs reales ni claves                            |
+| `npm run check`                               | Formato, lint, tipos, tests y build                        |
+| `npm audit`                                   | Consulta de vulnerabilidades conocidas                     |
 
 ESLint, TypeScript, Prettier y Zod conservan las versiones del lockfile. La caché
 local y `ignore-scripts` de [.npmrc](../.npmrc) permanecen. Snapshot y bloque
@@ -127,7 +137,8 @@ los tests verifican hash e inclusión íntegra.
 
 - [Verificación de Fase 0](PHASE_0_VALIDATION.md), registro histórico.
 - [Verificación de Fase 1A](PHASE_1A_VALIDATION.md), automatizada y aceptación reportada.
-- [Verificación de Fase 1A.5](PHASE_1A5_VALIDATION.md), comandos y límites actuales.
+- [Verificación de Fase 1A.5](PHASE_1A5_VALIDATION.md), registro histórico de arquitectura.
+- [Verificación de Fase 1B](PHASE_1B_VALIDATION.md), comandos y límites actuales.
 - [Instrucciones Codex](AGENTS.md) y [flujo de Git](GIT_WORKFLOW.md).
 - [Prompt de Fase 1B](prompts/PHASE_1B_PROMPT.md).
 

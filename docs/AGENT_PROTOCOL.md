@@ -1,6 +1,7 @@
 # Protocolo de agentes — borrador 1.0
 
-**Estado:** contrato propuesto en Fase 1A.5, sin transporte de agentes implementado.
+**Estado:** contrato definido en Fase 1A.5; Fase 1B implementa validación local y
+transporte simulado. Todavía no hay HTTPS con agentes externos.
 Los [tipos TypeScript](../src/agents/protocol.ts) son puertos y datos puros, no
 validadores, autenticación ni controles de gasto. La especificación es independiente
 del lenguaje; un agente no necesita importar Jarvis, su SDK o su base de datos.
@@ -259,8 +260,9 @@ a agentes reales; la deduplicación actual de Telegram en memoria no los sustitu
 
 ## 8. Evolución y alcance
 
-Fase 1B implementará Registry/Gateway con adaptador falso y tests de permisos,
-schemas, deadlines e idempotencia; Fase 1C verificará HTTPS contra una aplicación
+Fase 1B implementa Registry/Gateway con adaptador falso y tests de permisos,
+schemas, deadlines, concurrencia, cancelación e idempotencia en memoria.
+[Semántica local y límites](AGENT_RUNTIME.md). Fase 1C verificará HTTPS contra una aplicación
 ficticia independiente. Eventos públicos y tareas autónomas esperan Fase 3.
 Los contratos no están conectados al bot ni habilitan servicios externos.
 

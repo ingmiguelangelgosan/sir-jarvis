@@ -23,9 +23,9 @@ salieron correctamente. Es evidencia de uso reportada por el usuario, separada
 de los 104 tests automatizados de Fase 1A. No se inventan resultados por caso,
 carga, retención o agentes externos que aún no se probaron.
 
-## Fase 1A.5 — arquitectura de orquestador
+## Fase 1A.5 — arquitectura de orquestador: FUSIONADA
 
-Entrega documental de esta rama: identidad, fronteras de proyectos, protocolo v1,
+Entrega documental fusionada mediante PR #3: identidad, fronteras de proyectos, protocolo v1,
 estrategia de infraestructura, tipos puros y conservación financiera verificable.
 [Copia original](history/PRODUCT_RULES_FINANCE_V0.1.md),
 [trazabilidad](agents/FINANCE_AGENT_TRACEABILITY.md) y
@@ -36,12 +36,19 @@ documentos/tipos son coherentes, enlaces y tests pasan, Telegram conserva su
 comportamiento y el PR queda para revisión manual. No hay Registry/Gateway
 funcionales, conexiones a agentes, DB nueva, MCP, IA ni infraestructura desplegada.
 
-## Fase 1B — primer Registry y Gateway funcionales
+## Fase 1B — primer Registry y Gateway: IMPLEMENTADOS CON FAKE
 
 Registro local administrado, habilitación y permisos por sujeto/capacidad;
 manifest/schema versionados y rechazo por defecto. Gateway orquestado mediante
 un transporte falso inyectado, correlación, estados, deadline e idempotencia
 en memoria con límites explícitos. Sin agente de dominio ni HTTP real.
+
+La implementación se ejecuta mediante `npm run agents:demo` y un caso de uso
+programático independiente de Telegram. Incluye validación runtime, single-flight
+concurrente, cancelación por caller, plazos, cooldown, pending y tombstones inciertos.
+La caché de outputs tiene retención explícita y las reservas no se expulsan para
+permitir nuevos efectos. Al reiniciar se pierde la protección en memoria.
+[Guía y límites](AGENT_RUNTIME.md), [validación](PHASE_1B_VALIDATION.md).
 
 Aceptación: un usuario permitido solicita una capacidad ficticia registrada y
 recibe resultado simulado correcto; desconocidos, deshabilitados, versión/schema

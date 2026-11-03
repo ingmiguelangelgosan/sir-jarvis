@@ -67,14 +67,17 @@ src/
   channels/cli/         # diagnóstico local
   channels/telegram/    # adaptador existente
   infrastructure/       # entorno local
-  agents/protocol.ts    # tipos/puertos puros, sin implementación ni conexiones
+  agents/               # tipos, validación y Registry/Gateway en memoria con fake
 tests/
 docs/
   agents/               # especificación de proyectos externos, sin runtime
   history/              # requisitos originales preservados
 ```
 
-Registry y Gateway se implementarán en Fase 1B detrás de estos contratos.
+Registry y Gateway existen en Fase 1B detrás de estos contratos, con transporte
+falso, actor autenticado separado del mensaje, validación y reservas concurrentes.
+Mantener tests de cancelación, deadlines, TTL y resultado incierto; no sustituirlos
+por pruebas solo secuenciales. La memoria no es idempotencia durable o de dominio.
 No crear carpetas vacías, DB, colas, microservicios internos ni una librería
 publicada prematura. HTTPS/JSON será el primer transporte externo; MCP es futuro.
 
