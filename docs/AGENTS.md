@@ -123,6 +123,15 @@ y backup externo requieren revisión y pruebas reales autorizadas. No acceder a
 Billing o credenciales AWS por disponer de herramientas. El heartbeat no prueba
 conectividad Telegram y, sin agentes, los diagnósticos conservan dedup en memoria.
 
+Fase 1G incorpora [egreso versionado](EGRESS_POLICY.md) y su
+[validación](PHASE_1G_VALIDATION.md). El reporte del operador sobre un host y
+`jarvis-egress-deny.service` no autoriza modificar la VPS ni sustituir el servicio
+manual sin inspección. Preservar SSH/UFW y reglas ajenas; no hacer flush global.
+DNS integrado, sus rutas fuera de `DOCKER-USER`, IPv6, caducidad y precedencia
+de firewall deben demostrarse antes de liberar Jarvis. Un control pendiente
+conserva DROP; ni un reboot ni una actualización activa el bot automáticamente.
+No tratar una IP Telegram histórica como autorización permanente.
+
 ## Trabajo y verificación
 
 - Explicar alcance, riesgos, dependencias y pruebas antes de cambios no triviales.

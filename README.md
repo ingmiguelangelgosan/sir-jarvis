@@ -39,6 +39,8 @@ un agente o por este diseño.
 - [Runbook del piloto Lightsail](docs/AWS_PILOT_RUNBOOK.md)
 - [Checklist previo de autorización](docs/AWS_PILOT_CHECKLIST.md)
 - [Validación local de Fase 1F](docs/PHASE_1F_VALIDATION.md)
+- [Egreso seguro del piloto e integración con el bloqueo existente](docs/EGRESS_POLICY.md)
+- [Evidencia y pendientes de Fase 1G](docs/PHASE_1G_VALIDATION.md)
 - [Roadmap de Jarvis](docs/ROADMAP.md)
 - [Telegram](docs/TELEGRAM.md)
 - [Finance Agent independiente](docs/agents/FINANCE_AGENT_SPEC.md)

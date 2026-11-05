@@ -206,6 +206,16 @@ Las claves de negocio y transacciones se implementan en el agente de dominio.
 
 ## Despliegue y extensión
 
+Fase 1G incorpora una [política de egreso versionada](EGRESS_POLICY.md) fuera del
+Core. La resolución y aprobación se hacen en el host; el bot usa una IP temporal
+fijada para Telegram, TLS por nombre y upstream DNS loopback explícito. Antes de
+liberar el proceso se instalan allowlists con caducidad en ipset tanto en el host
+como en el namespace del contenedor, se bloquean DNS/IPv6 y se prueban destinos
+positivos/negativos. Las unidades solo habilitan denegación al boot; el bot exige
+inicio manual y comprobaciones nuevas. El host que el operador reportó validado
+no fue accedido ni modificado durante esta entrega. Su instalación y convivencia
+con el servicio manual legado siguen sujetas a las pruebas de aceptación.
+
 Fase 1F prepara un [piloto Lightsail](AWS_PILOT_RUNBOOK.md) con Compose separado
 de la demo: un contenedor Jarvis, mantenimiento offline y volúmenes locales, sin
 Echo permanente o puertos del Gateway. La integración de agentes está apagada en

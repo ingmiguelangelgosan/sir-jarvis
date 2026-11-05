@@ -46,6 +46,12 @@ Fase 1F prepara el primer piloto, sin crear infraestructura:
 y [validación local](PHASE_1F_VALIDATION.md). Su Compose mínimo mantiene agentes
 apagados; preflight e inspección viven en `deploy/`, fuera del Core.
 
+Fase 1G añade [política de egreso](EGRESS_POLICY.md), scripts privilegiados del
+host, barreras de DNS/IPv6 y unidades de inicio manual. La
+[validación](PHASE_1G_VALIDATION.md) distingue el host reportado por el operador,
+las pruebas Linux locales y los reinicios aún pendientes en la VPS. La política
+no instala controles ni inicia el bot como efecto de clonar el repositorio.
+
 La arquitectura y su diagrama están en [ARCHITECTURE](ARCHITECTURE.md), el contrato
 en [AGENT_PROTOCOL](AGENT_PROTOCOL.md) y el plan de recursos en
 [DEPLOYMENT_STRATEGY](DEPLOYMENT_STRATEGY.md). Las referencias a finanzas en los

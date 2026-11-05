@@ -1,0 +1,25 @@
+[Unit]
+Description=Fail-closed baseline for the Jarvis pilot subnet
+Requires=docker.service jarvis-egress-deny.service
+After=docker.service jarvis-egress-deny.service
+Before=jarvis-pilot.service
+PartOf=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/node /opt/sir-jarvis/deploy/egress/host.mjs deny
+ExecStop=/usr/bin/node /opt/sir-jarvis/deploy/egress/host.mjs deny
+User=root
+UMask=0077
+NoNewPrivileges=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/run
+RuntimeDirectory=jarvis-egress
+RuntimeDirectoryMode=0700
+RuntimeDirectoryPreserve=yes
+UnsetEnvironment=NODE_OPTIONS NODE_EXTRA_CA_CERTS NODE_TLS_REJECT_UNAUTHORIZED OPENSSL_CONF SSL_CERT_FILE SSL_CERT_DIR HTTP_PROXY HTTPS_PROXY ALL_PROXY DOCKER_HOST DOCKER_CONTEXT
+
+[Install]
+WantedBy=multi-user.target

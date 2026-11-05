@@ -6,6 +6,13 @@ el costo bruto/neto, el destino externo de copias y las acciones administrativas
 del [checklist](AWS_PILOT_CHECKLIST.md). Las pruebas locales se registran en
 [PHASE_1F_VALIDATION](PHASE_1F_VALIDATION.md), sin atribuirles aceptación en AWS.
 
+Fase 1G incorpora la [política de egreso versionada](EGRESS_POLICY.md) y su
+[validación](PHASE_1G_VALIDATION.md). El contexto del host reportado por el
+operador el 2026-11-05 ya incluye un bloqueo manual persistente; su integración
+requiere el procedimiento nuevo, conservando `jarvis-egress-deny.service` hasta
+demostrar la nueva barrera. Las instrucciones de arranque de Fase 1F no sustituyen
+esa comprobación ni autorizan iniciar el bot directamente mediante Compose.
+
 ## Arquitectura y primer corte
 
 Propuesta: una instancia Lightsail Linux de **2 GB RAM y 2 vCPU**, Ubuntu
@@ -119,6 +126,14 @@ en Jarvis, mantenimiento o agentes ni usar un usuario de aplicación como
 administrador del daemon. [Modelo de permisos Docker](https://docs.docker.com/engine/install/linux-postinstall/).
 
 ## Egreso y firewall antes de iniciar el bot
+
+Para instalar, verificar o actualizar el egreso, seguir primero
+[EGRESS_POLICY](EGRESS_POLICY.md). El texto siguiente conserva el razonamiento
+de Fase 1F; el procedimiento versionado de Fase 1G es la ruta operativa vigente.
+En particular, DNS del host y DNS del contenedor no son la misma excepción:
+el bot no recibe permiso para consultar directamente `172.26.0.2` ni un resolver
+público. Resolver y validar IPs desde el host no habilita forwarding DNS arbitrario
+del resolver integrado.
 
 No confundir `ports: []`, UFW o la allowlist de agentes con un firewall completo
 de salida. Docker gestiona reglas de encaminamiento y los puertos publicados
@@ -274,13 +289,17 @@ versionada en aislamiento en otro incremento antes de autorizarla.
 
 ## Inicio y aceptación limitada
 
+El arranque real queda condicionado a la política de Fase 1G y su acción manual
+documentada. No ejecutar el antiguo `up -d` de este apartado para saltar la
+espera del namespace, el bloqueo DNS/IPv6 o la comprobación de caducidad. Tras un
+reinicio, la política restaura denegación y **no activa Jarvis automáticamente**.
+
 Confirmar primero: release/imágenes aprobados, firewall y egreso comprobados,
 estado válido, secretos propios, autorización de costos y un solo consumidor del
 token en todos los equipos. Los locks locales no coordinan dos hosts.
 
 ```sh
 node deploy/pilot-preflight.mjs sir-jarvis-pilot
-docker compose -p sir-jarvis-pilot -f deploy/compose.pilot.yaml up -d --no-build jarvis
 docker compose -p sir-jarvis-pilot -f deploy/compose.pilot.yaml ps
 docker compose -p sir-jarvis-pilot -f deploy/compose.pilot.yaml exec -T jarvis node /app/healthcheck.mjs
 node deploy/pilot-inspect.mjs sir-jarvis-pilot
@@ -297,11 +316,11 @@ Telegram o agentes. Registrar por separado recepción/respuesta manual, backoff,
 429 y errores seguros; no archivar conversación ni token como evidencia. Detener
 si hay reinicios repetidos, fallos de autorización, permisos o límites de disco.
 
-La política `on-failure:3` limita reintentos del contenedor ante error; no garantiza
-arranque cuando reinicia el daemon. Después de reiniciar la VPS/Docker, este
-piloto exige arranque manual tras comprobar firewall, estado y preflight. No
-combinar otro supervisor automático con esa política sin rediseñar y probar su
-orden de arranque. [Políticas de reinicio Docker](https://docs.docker.com/engine/containers/start-containers-automatically/).
+Fase 1G cambia el piloto a `restart: 'no'` y DNS upstream loopback explícito.
+Después de reiniciar la VPS/Docker, exige arranque manual por la unidad de egreso,
+tras comprobar firewall, estado y aprobación vigente. No combinar otro supervisor
+automático con esa política ni ejecutar el antiguo `compose up` como ruta
+operativa. [Políticas de reinicio Docker](https://docs.docker.com/engine/containers/start-containers-automatically/).
 
 Con agentes apagados, el bot abre la DB y comprueba el gate de recuperación,
 pero no conecta el journal de acciones ni recupera un offset Telegram durable.
