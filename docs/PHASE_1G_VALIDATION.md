@@ -7,6 +7,15 @@ fusionado en `main` el `2026-11-03T21:58:51Z`, commit
 `765b697b27beac5f6966cb685902d882a327590b`. Se actualizó `main`, se comprobó
 el estado local y se creó `feat/pilot-egress-policy` antes de implementar.
 
+Entrega en el [PR #10](https://github.com/ingmiguelangelgosan/sir-jarvis/pull/10),
+hacia `main`, sin merge ni auto-merge. La protección se volvió a consultar sin
+modificarla: PR obligatorio, checks Windows/Linux, `strict: true`, administradores
+incluidos, cero aprobaciones y force push/eliminación bloqueados. El commit
+inicial `2db8ab0` tiene ejecución de
+[push](https://github.com/ingmiguelangelgosan/sir-jarvis/actions/runs/41977818745)
+y [pull_request](https://github.com/ingmiguelangelgosan/sir-jarvis/actions/runs/41977889612);
+se verifican los checks del último commit en el PR antes de la entrega.
+
 La fase prepara scripts operativos, unidades, comprobaciones y documentación.
 **No se accede ni modifica la VPS**, no se crean recursos AWS, no se consulta
 Billing y no se habilita el bot ni agentes externos. Se conservan el Core,
