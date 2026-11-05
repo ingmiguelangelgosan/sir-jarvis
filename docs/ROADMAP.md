@@ -146,7 +146,9 @@ efectos desconocidos. Requisito previo a AWS con efectos sensibles, no autorizac
 de desplegar. Lightsail sigue como principal previsto; Billing, créditos, región,
 presupuesto y recursos concretos requieren revisión y aprobación separadas.
 
-## Fase 1F — preparación del piloto AWS: IMPLEMENTADA, SIN DESPLIEGUE
+## Fase 1F — preparación del piloto AWS: FUSIONADA
+
+PR #9 fusionado en main, verificado antes de iniciar Fase 1G.
 
 [Runbook](AWS_PILOT_RUNBOOK.md), [checklist](AWS_PILOT_CHECKLIST.md),
 [validación](PHASE_1F_VALIDATION.md) y Compose mínimo independiente de la demo.
@@ -156,7 +158,21 @@ apagados y comandos Telegram existentes, sin Echo permanente o puertos públicos
 Plan de costo bruto de USD 25, créditos sin verificar y backup externo cifrado
 con destino sujeto a aprobación; no se consulta Billing ni se crean recursos.
 
-## Siguiente corte — despliegue piloto solo con autorización expresa
+## Fase 1G — egreso seguro del piloto: IMPLEMENTADA LOCALMENTE, HOST PENDIENTE
+
+Política operativa versionada para el contexto Ubuntu/Docker/iptables reportado
+por el operador. Conserva SSH, UFW y el bloqueo manual existente mientras se
+instala una denegación específica de la subred; IPs Telegram verificadas y con
+plazo, control de DNS integrado y sus rutas, barrera IPv6 y proceso del bot
+retenido hasta comprobar el namespace. Docker/host restablecen DROP y no arrancan
+Jarvis por sí solos. [Política](EGRESS_POLICY.md),
+[evidencia y pendientes](PHASE_1G_VALIDATION.md).
+
+La fase no modifica la VPS, no crea recursos ni habilita agentes. Toda condición
+no demostrada mantiene el despliegue bloqueado. El operador debe integrar y
+probar los artefactos nuevos antes de continuar con el piloto.
+
+## Siguiente corte — instalación verificada y piloto con autorización expresa
 
 Verificar región, cotización, Billing/créditos con permiso específico y completar
 el registro privado de recursos antes de pedir autorización de creación. Validar

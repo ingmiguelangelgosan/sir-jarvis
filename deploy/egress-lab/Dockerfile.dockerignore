@@ -1,0 +1,8 @@
+**
+!deploy/
+!deploy/egress-lab/
+!deploy/egress-lab/Dockerfile
+!deploy/egress-lab/kernel.py
+!deploy/egress-lab/dns-fixture.py
+!deploy/egress/
+!deploy/egress/policy.mjs

@@ -1,0 +1,24 @@
+[Unit]
+Description=Manual, leased Jarvis pilot with verified egress
+BindsTo=docker.service jarvis-egress-policy.service
+Requisite=jarvis-egress-policy.service
+After=docker.service jarvis-egress-policy.service
+
+[Service]
+Type=simple
+User=root
+UMask=0077
+Restart=no
+ExecStart=/usr/bin/flock --nonblock /run/jarvis-egress/operator.lock /usr/bin/node /opt/sir-jarvis/deploy/egress/host.mjs start
+ExecStop=/usr/bin/node /opt/sir-jarvis/deploy/egress/host.mjs stop
+ExecStopPost=/usr/bin/node /opt/sir-jarvis/deploy/egress/host.mjs deny
+TimeoutStartSec=90
+TimeoutStopSec=45
+KillMode=control-group
+NoNewPrivileges=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/run
+UnsetEnvironment=NODE_OPTIONS NODE_EXTRA_CA_CERTS NODE_TLS_REJECT_UNAUTHORIZED OPENSSL_CONF SSL_CERT_FILE SSL_CERT_DIR HTTP_PROXY HTTPS_PROXY ALL_PROXY DOCKER_HOST DOCKER_CONTEXT
+
+# Intentionally no [Install] section. Never enable or add a boot WantedBy.

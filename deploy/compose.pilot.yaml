@@ -23,7 +23,11 @@ x-pilot-runtime: &pilot-runtime
 services:
   jarvis:
     <<: *pilot-runtime
-    restart: 'on-failure:3'
+    # No automatic retry outside the verified host-controlled session.
+    restart: 'no'
+    # Embedded DNS must not forward through the host before the egress gate.
+    # The reviewed override supplies Telegram's pinned hosts entry.
+    dns: ['127.0.0.1']
     environment:
       NODE_ENV: production
       JARVIS_AI_MODE: disabled

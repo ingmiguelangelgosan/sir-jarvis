@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "project": "sir-jarvis-pilot",
+  "releaseDirectory": "/opt/sir-jarvis",
+  "image": "sha256:REPLACE_WITH_REVIEWED_LOCAL_IMAGE_ID_64_HEX",
+  "privateDirectory": "/srv/jarvis-pilot/private"
+}

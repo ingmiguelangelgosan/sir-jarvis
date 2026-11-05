@@ -69,6 +69,10 @@ actual. [Créditos AWS](https://docs.aws.amazon.com/awsaccountbilling/latest/abo
 
 ## Host, acceso y egreso
 
+El host de partida y la instalación manual reportados en Fase 1G se detallan en
+[EGRESS_POLICY](EGRESS_POLICY.md). No marcar los controles nuevos por el solo
+hecho de que `jarvis-egress-deny.service` restaurase DROP en el ensayo previo.
+
 - [ ] Blueprint Ubuntu 24.04 LTS soportado y disponible, arquitectura e imagen
       exactas documentadas; versión/digest de Node y release de Docker/Compose
       fijados según el runbook. No actualizar automáticamente el release del bot.
@@ -83,6 +87,21 @@ actual. [Créditos AWS](https://docs.aws.amazon.com/awsaccountbilling/latest/abo
       administrativo y HTTPS de Telegram/agentes aprobados. Comprobar firewall
       efectivo del tráfico Docker; una regla de UFW sobre el host no prueba
       automáticamente filtrado de tráfico reenviado de contenedores.
+- [ ] Integración revisada con `jarvis-egress-deny.service` y sus drop-ins reales,
+      manteniendo el bloqueo durante la transición; SSH y UFW conservados, sin
+      flush o cambios de política globales.
+- [ ] Candidato de direcciones Telegram resuelto por el host, todas las IPs
+      públicas y TLS validados, manifiesto concreto aprobado y plazo vigente.
+      La IP de una prueba anterior no se reutiliza como permanente.
+- [ ] DNS integrado/directo y sus rutas fuera de `DOCKER-USER` efectivamente
+      restringidos; namespace e identidad del contenedor comprobados antes de
+      liberar Jarvis. IPv6 explícitamente bloqueado, sin ruta alternativa.
+- [ ] Pruebas HTTPS positivas y negativas sin token, DNS UDP/TCP, metadata,
+      link-local, cambios/fallos de resolución y vencimiento conservadas como
+      evidencia de reglas/tráfico; un timeout solo no demuestra DROP.
+- [ ] Docker restart y Ubuntu reboot probados con los artefactos nuevos: firewall
+      precede al proceso del bot y este permanece detenido hasta acción manual.
+      Un fallo de comprobación mantiene el despliegue bloqueado.
 - [ ] Conservar verificación TLS/DNS/IP, redirects bloqueados, allowlist, identidad
       server-only y autorización. No permitir metadata/link-local/loopback ni
       rangos privados amplios para resolver conectividad.
