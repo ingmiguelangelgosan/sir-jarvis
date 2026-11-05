@@ -36,7 +36,7 @@ if(scenario==='bad-config')config.version=2;
 if(scenario!=='no-config')files.set(ROOT+'/config.json',JSON.stringify(config));
 if(scenario==='dns-failure')files.set(ROOT+'/approved.json','OLD_REVIEW_CANARY');
 if(scenario==='runtime-permission'){dirs.set(RUN,0o755);dirs.set(PUBLIC,0o755)}
-for(const name of ['gate.mjs','policy.mjs','host.mjs'])files.set('/opt/jarvis-release/deploy/egress/'+name,'reviewed-script');
+for(const name of ['gate.mjs','policy.mjs','host.mjs','iptables.mjs'])files.set('/opt/jarvis-release/deploy/egress/'+name,'reviewed-script');
 const privatePath=p=>typeof p==='string'&&(p.startsWith(ROOT)||p.startsWith(RUN)||p.startsWith('/opt/jarvis-release')||p.startsWith('/srv/jarvis-private'));
 const missing=()=>Object.assign(new Error('PRIVATE_FS_CANARY'),{code:'ENOENT'});
 let nextFd=50000;const fds=new Map();

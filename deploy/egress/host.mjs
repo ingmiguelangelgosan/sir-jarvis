@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { createRuleManager } from './iptables.mjs';
 import { randomBytes } from 'node:crypto';
 import { Resolver } from 'node:dns/promises';
 import {
@@ -186,7 +187,7 @@ function loadConfig() {
     if (!s.isDirectory() || s.isSymbolicLink() || s.uid !== 0 || s.mode & 0o022)
       throw fail();
   }
-  for (const name of ['gate.mjs', 'policy.mjs', 'host.mjs']) {
+  for (const name of ['gate.mjs', 'policy.mjs', 'host.mjs', 'iptables.mjs']) {
     const p = `${c.releaseDirectory}/deploy/egress/${name}`,
       s = lstatSync(p);
     if (!s.isFile() || s.isSymbolicLink() || s.uid !== 0 || s.mode & 0o022)
@@ -217,18 +218,12 @@ function compose(args, optional = false) {
     },
   );
 }
-function uniqueFirst(chain, args) {
-  const line = `-A ${chain} ${args.join(' ')}`;
-  let rows = ip(['-S', chain])
-    .split('\n')
-    .filter((s) => s.startsWith('-A '));
-  if (rows[0] !== line) ip(['-I', chain, '1', ...args]);
-  rows = ip(['-S', chain])
-    .split('\n')
-    .filter((s) => s.startsWith('-A '));
-  for (let index = rows.length - 1; index > 0; index--)
-    if (rows[index] === line) ip(['-D', chain, String(index + 1)]);
-}
+const { uniqueFirst, assertRules } = createRuleManager({
+  ip,
+  run,
+  ns,
+  assertIdentity,
+});
 
 /** Denial requires no Docker daemon, config, policy, DNS or ipset availability. */
 function deny() {
@@ -311,88 +306,6 @@ function proofIdentity(id) {
 function assertIdentity(id, identity) {
   if (JSON.stringify(proofIdentity(id)) !== JSON.stringify(identity))
     throw fail();
-}
-function assertPrivateRules(save, table, chain, expected) {
-  const section = save.split(`*${table}\n`)[1]?.split('COMMIT')[0];
-  if (!section) throw fail();
-  const lines = section
-    .split('\n')
-    .filter((line) => line.startsWith(`-A ${chain} `));
-  const planned = expected
-    .split('\n')
-    .filter((line) => line.startsWith(`-A ${chain} `));
-  // iptables-save normalizes /32 and explicit -m tcp. Compare normalized tokens.
-  const norm = (s) => s.replace(/\/32\b/g, '').replace(/ -m tcp\b/g, '');
-  if (lines.map(norm).join('\n') !== planned.map(norm).join('\n')) throw fail();
-}
-function assertRules(policy, id, identity) {
-  validatePolicy(policy);
-  assertIdentity(id, identity);
-  const rules = firewallRules(policy.addresses);
-  const first = ip(['-S', 'DOCKER-USER'])
-    .split('\n')
-    .find((s) => s.startsWith('-A '));
-  if (first !== `-A DOCKER-USER -s ${SUBNET} -j ${CHAIN_HOST}`) throw fail();
-  const inputFirst = ip(['-S', 'INPUT'])
-    .split('\n')
-    .find((s) => s.startsWith('-A '));
-  if (
-    inputFirst !==
-    `-A INPUT -s ${SUBNET} -m comment --comment jarvis-1g-host-deny -j DROP`
-  )
-    throw fail();
-  assertPrivateRules(run('save'), 'filter', CHAIN_HOST, rules.host);
-  assertPrivateRules(
-    ns(identity.pid, 'save'),
-    'raw',
-    CHAIN_NS4,
-    rules.namespace4,
-  );
-  assertPrivateRules(
-    ns(identity.pid, 'save6'),
-    'raw',
-    CHAIN_NS6,
-    rules.namespace6,
-  );
-  for (const [p, name] of [
-    [undefined, SET_HOST],
-    [identity.pid, SET_NS],
-  ]) {
-    const saved = p
-      ? ns(p, 'ipset', ['save', name])
-      : run('ipset', ['save', name]);
-    const rows = saved.split('\n').filter((line) => line.startsWith('add '));
-    if (rows.length !== policy.addresses.length) throw fail();
-    const found = [];
-    for (const row of rows) {
-      const match = new RegExp(`^add ${name} ([0-9.]+) timeout ([0-9]+)$`).exec(
-        row,
-      );
-      if (
-        !match ||
-        !policy.addresses.includes(match[1]) ||
-        Number(match[2]) < 1 ||
-        Number(match[2]) > Math.ceil((policy.expiresAt - Date.now()) / 1000)
-      )
-        throw fail();
-      found.push(match[1]);
-    }
-    if (found.sort().join(',') !== [...policy.addresses].sort().join(','))
-      throw fail();
-    for (const address of policy.addresses) {
-      if (p) ns(p, 'ipset', ['test', name, address]);
-      else run('ipset', ['test', name, address]);
-    }
-  }
-  for (const [tool, chain] of [
-    ['iptables', CHAIN_NS4],
-    ['ip6tables', CHAIN_NS6],
-  ]) {
-    const output = ns(identity.pid, tool, ['-t', 'raw', '-S', 'OUTPUT'])
-      .split('\n')
-      .find((s) => s.startsWith('-A '));
-    if (output !== `-A OUTPUT -j ${chain}`) throw fail();
-  }
 }
 function platform() {
   if (

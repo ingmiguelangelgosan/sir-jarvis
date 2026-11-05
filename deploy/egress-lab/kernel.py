@@ -123,6 +123,11 @@ try:
     namespace_set = policy.get('sets', {}).get('namespace', 'JRV1G_NS_TG4')
     assert all(isinstance(policy[name], str) for name in ['host', 'namespace4', 'namespace6'])
     assert 'nf_tables' in run(['iptables', '--version']).stdout
+    stage = 'production-rule-comparison-regression'
+    regression = json.loads(run(['node', '/lab/rule-regression.mjs'], timeout=45).stdout)
+    assert regression['status'] == 'passed-real-rule-regression'
+    assert regression['realIptablesCommands'] and not regression['jarvisStarted']
+    results.extend(regression['scenarios'])
     directory = pathlib.Path(tempfile.mkdtemp(prefix='jarvis-kernel-', dir='/tmp'))
     stage = 'ephemeral-tls'
     run(['openssl', 'req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-sha256',
@@ -236,6 +241,9 @@ try:
         assert result.returncode != 0 and APPROVED not in result.stdout
     ok('embedded-and-direct-dns-udp-tcp-blocked-before-docker-forwarding')
     print(json.dumps({'status': 'passed-isolated-linux-kernel', 'scenarios': results,
+                      'ruleRegression': {key: regression[key] for key in [
+                          'realDenyExecutions', 'kernelHostCommentQuoted',
+                          'kernelEscapedCommentQuoted', 'dockerIdentityAdapter']},
                       'iptables': run(['iptables', '--version']).stdout.strip(),
                       'node': run(['node', '--version']).stdout.strip(),
                       'systemd': run(['systemd-analyze', '--version']).stdout.splitlines()[0],

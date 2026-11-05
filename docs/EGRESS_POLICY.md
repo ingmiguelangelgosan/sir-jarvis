@@ -111,6 +111,16 @@ sudo /usr/bin/node /opt/sir-jarvis/deploy/egress/host.mjs approve --sha256 <huel
 sudo /usr/bin/node /opt/sir-jarvis/deploy/egress/host.mjs stop
 ```
 
+Las comparaciones de `iptables -S`/`iptables-save` interpretan argumentos con
+comillas y escapes mediante `deploy/egress/iptables.mjs`, sin evaluar un shell.
+El contenido de comentarios permanece literal; solo se normalizan `/32` en
+operandos de dirección y el módulo TCP redundante. `deny` repetido conserva una
+sola copia de cada hook propio, primera en su cadena, y elimina duplicados
+anteriores sin vaciar cadenas globales. Ejecutar las operaciones administrativas
+secuencialmente, sin cambios concurrentes del firewall: `-w` protege cada comando,
+no toda la secuencia de inspección y eliminación por índice. Esto no ofrece
+coordinación con otros administradores que editen reglas simultáneamente.
+
 `candidate` propone, `approve` registra el manifiesto concreto y **ninguno inicia
 el bot o abre tráfico**. `deny`/`stop` revocan el permiso y vacían los conjuntos
 privados de destinos; no vacían cadenas globales. `start` es una operación manual
@@ -163,7 +173,7 @@ según el [runbook](AWS_PILOT_RUNBOOK.md#release-e-imagen-concretos). Todo el á
 de scripts que ejecuta root y sus directorios deben pertenecer a root y no ser
 escribibles por grupo/otros. No ejecutar código privilegiado desde un checkout
 editable por el usuario del contenedor. Registrar hashes de `host.mjs`,
-`policy.mjs`, `gate.mjs`, Compose y las unidades. El sistema no descarga ni
+`policy.mjs`, `iptables.mjs`, `gate.mjs`, Compose y las unidades. El sistema no descarga ni
 instala estos archivos por sí solo.
 
 Con Jarvis detenido y después de inspeccionar el servicio manual:

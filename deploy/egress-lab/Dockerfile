@@ -8,5 +8,5 @@ COPY --from=node /usr/local/bin/node /usr/local/bin/node
 RUN ln -s /usr/local/bin/node /usr/bin/node
 WORKDIR /lab
 COPY deploy/egress-lab /lab
-COPY deploy/egress/policy.mjs /lab/policy.mjs
+COPY deploy/egress/policy.mjs deploy/egress/host.mjs deploy/egress/iptables.mjs /lab/
 CMD ["python3", "/lab/kernel.py"]

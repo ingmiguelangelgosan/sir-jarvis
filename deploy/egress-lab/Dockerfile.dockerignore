@@ -4,5 +4,8 @@
 !deploy/egress-lab/Dockerfile
 !deploy/egress-lab/kernel.py
 !deploy/egress-lab/dns-fixture.py
+!deploy/egress-lab/rule-regression.mjs
 !deploy/egress/
 !deploy/egress/policy.mjs
+!deploy/egress/host.mjs
+!deploy/egress/iptables.mjs

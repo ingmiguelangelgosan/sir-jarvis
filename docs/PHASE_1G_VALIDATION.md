@@ -95,6 +95,55 @@ sin conceder capabilities al contenedor.
 
 ## Repetir la evidencia local
 
+### Revisión de comparaciones iptables en PR #10 — 2026-11-05
+
+Se sustituyeron las comparaciones literales de `uniqueFirst()` y `assertRules()`
+por argumentos normalizados en `deploy/egress/iptables.mjs`, compartido entre el
+CLI productivo y el laboratorio. Interpreta comillas/escapes sin shell; conserva
+comentarios como datos opacos y rechaza sintaxis incompleta. `/32` se normaliza
+solo en operandos de dirección y `-m tcp` solo cuando el protocolo es TCP.
+`uniqueFirst()` verifica además que quede exactamente una copia y en primer lugar.
+La validación de archivos root-owned incluye el módulo nuevo. No se modificaron
+las reglas generadas, los destinos permitidos, SSH/UFW, DNS, IPv6, caducidad,
+unidades ni el comportamiento de arranque manual.
+
+Resultados repetidos de esta revisión:
+
+- `npm run check`: **467/467**; ocho regresiones nuevas del parser/comparador,
+  conservando las 459 anteriores. Formato, lint, typecheck y build correctos.
+- `node tests/egress-kernel-lab.mjs`: **18 escenarios**, dos arranques del
+  contenedor; proyecto `jarvis-egress-lab-572af436764f`, **55.806 s**,
+  Ubuntu 24.04 / iptables **1.8.10 (nf_tables)** / Node 24.22.1.
+- El CLI `host.mjs deny` real se ejecutó **nueve veces por arranque**, incluyendo
+  duplicados sembrados antes y después de reglas ajenas. Quedó un solo hook propio
+  por cadena, primero; las reglas SSH/UFW/legacy del namespace permanecieron intactas.
+- Esa versión serializó los comentarios simples **sin comillas** y los comentarios
+  con espacios, comillas y backslash **entre comillas**. `uniqueFirst()` se probó
+  contra ambas salidas reales, incluido texto literal `-m tcp /32` en comentarios.
+- El mismo `assertRules()` productivo aceptó reglas instaladas mediante
+  iptables/ipset/nsenter reales. También aceptó una variante entrecomillada del
+  comentario INPUT sobre el dump real: esa variante es una transformación de
+  presentación del test, no se atribuye al serializador nativo de esta versión.
+  Rechazó cambios de comentario, precedencia, destino, barrera IPv6 y TTL.
+- Solo se adapta la inspección Docker de identidad al fixture: se comprueban PID,
+  inode del namespace y tiempo de inicio reales de un proceso ficticio. No se
+  simulan las respuestas de iptables, iptables-save o ipset.
+- Se repitieron las barreras DNS integrado/directo UDP/TCP, TLS local positivo,
+  destinos negativos, metadata/link-local, IPv6 y expiración de conexiones ya
+  establecidas. DNS: **2 consultas antes**, **0 después**. Sin conexiones públicas.
+- Gate/unidades: **4 escenarios**, **4.738 s**, con hijo ficticio, sin bot real.
+- Compose mínimo: **11 escenarios**, **11.482 s**, proyecto
+  `jarvis-pilot-check-6c6808f6a031`, Telegram simulado y restauración bloqueada
+  antes de APIs. Las capas rootfs del build repetido coincidieron; el ID de imagen
+  no coincidió, por lo que no se afirma reproducibilidad binaria independiente.
+
+Los logs nuevos están ignorados en `.tools/phase1g-rule-fix-check.log`,
+`.tools/phase1g-rule-fix-kernel.log`, `.tools/phase1g-rule-fix-control.log` y
+`.tools/phase1g-rule-fix-pilot.log`. Se conserva el límite de administración
+secuencial explicado en [EGRESS_POLICY](EGRESS_POLICY.md): `-w` no coordina una
+secuencia completa con otras ediciones concurrentes por índice. No se accedió a
+la VPS, no se inició el bot real y la aceptación del host sigue pendiente.
+
 También se ejecutó `npm ci`: 102 paquetes auditados y cero vulnerabilidades
 conocidas. La revisión de los **162 archivos del índice** no detectó credenciales
 reales o artefactos privados versionados; los canarios de Telegram preexistentes
@@ -107,7 +156,7 @@ Desde la raíz con Node 24 y Docker local:
 ```sh
 npm ci
 npm run check
-node --test tests/egress-policy.test.ts tests/egress-host.test.ts
+node --test tests/egress-policy.test.ts tests/egress-host.test.ts tests/egress-iptables.test.ts
 node tests/egress-kernel-lab.mjs
 ```
 
