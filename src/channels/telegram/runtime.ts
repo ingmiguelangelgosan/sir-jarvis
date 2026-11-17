@@ -1,6 +1,7 @@
 import { setTimeout } from 'node:timers/promises';
 import type { TelegramAgentCommands } from './agent-commands.ts';
 import type { TelegramActionJournal } from './durable-actions.ts';
+import type { ExpenseConversation } from './expense-conversation.ts';
 
 export type TelegramLogEvent =
   | 'telegram-started'
@@ -18,6 +19,8 @@ export interface RuntimeHooks {
   readonly log?: (event: TelegramLogEvent) => void;
   readonly agentCommands?: TelegramAgentCommands;
   readonly agentJournal?: TelegramActionJournal;
+  /** Experimental explicit composition only; no operational loader enables this. */
+  readonly expenseConversation?: ExpenseConversation;
 }
 
 export const wait: Wait = async (milliseconds, signal) => {
