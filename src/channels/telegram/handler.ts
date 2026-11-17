@@ -119,8 +119,14 @@ export function createTelegramHandler(
     if (intent === undefined) return;
 
     // Reserva antes de efectos externos: un envío incierto no se reintenta a ciegas.
+    const expenseCommand =
+      hooks.expenseConversation?.matches(message.text) === true;
+    // Financial commands must never fall back to volatile channel deduplication.
+    if (expenseCommand && !hooks.agentJournal) return;
     const agentCommand =
-      hooks.agentCommands !== undefined && isTelegramAgentCommand(message.text);
+      expenseCommand ||
+      (hooks.agentCommands !== undefined &&
+        isTelegramAgentCommand(message.text));
     let durableAction: string | undefined;
     if (agentCommand && hooks.agentJournal) {
       durableAction = hooks.agentJournal.reserve({
@@ -150,8 +156,8 @@ export function createTelegramHandler(
     let reply: string;
     try {
       reply =
-        intent === 'unsupported' && agentCommand && hooks.agentCommands
-          ? ((await hooks.agentCommands(
+        expenseCommand && hooks.expenseConversation
+          ? await hooks.expenseConversation.handle(
               {
                 userId: message.from.id,
                 chatId: message.chat.id,
@@ -161,8 +167,20 @@ export function createTelegramHandler(
                 text: message.text,
               },
               signal,
-            )) ?? respond(intent))
-          : respond(intent);
+            )
+          : intent === 'unsupported' && agentCommand && hooks.agentCommands
+            ? ((await hooks.agentCommands(
+                {
+                  userId: message.from.id,
+                  chatId: message.chat.id,
+                  messageId: message.message_id,
+                  botUsername,
+                  ...(botId === undefined ? {} : { botId }),
+                  text: message.text,
+                },
+                signal,
+              )) ?? respond(intent))
+            : respond(intent);
     } catch {
       reply = 'No pude obtener una respuesta del agente.';
     }
