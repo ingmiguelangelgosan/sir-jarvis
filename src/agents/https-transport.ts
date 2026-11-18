@@ -41,6 +41,8 @@ export interface HttpsAgentTransportOptions {
   readonly maxInflight?: number;
   /** Private trust roots, if required. Verification and hostname checks stay on. */
   readonly ca?: string;
+  /** Invoke start synchronously under the caller's exclusion, or omit it to deny. */
+  readonly withSendStart?: (start: () => void) => undefined;
 }
 
 function operationKey(query: AgentOperationQuery): string {
@@ -144,6 +146,7 @@ export class HttpsAgentTransport implements AgentTransport {
   readonly #maxPending: number;
   readonly #maxInflight: number;
   readonly #ca: string | undefined;
+  readonly #withSendStart: HttpsAgentTransportOptions['withSendStart'];
   readonly #pending = new Map<string, PendingContext>();
   readonly #active = new Set<AbortController>();
   #resolving = 0;
@@ -164,6 +167,7 @@ export class HttpsAgentTransport implements AgentTransport {
     this.#maxPending = options.maxPending ?? 256;
     this.#maxInflight = options.maxInflight ?? 32;
     this.#ca = options.ca;
+    this.#withSendStart = options.withSendStart;
     if (
       !Number.isSafeInteger(this.#timeoutMs) ||
       this.#timeoutMs < 1 ||
@@ -176,6 +180,8 @@ export class HttpsAgentTransport implements AgentTransport {
       this.#maxInflight > 256 ||
       (this.#ca !== undefined &&
         (typeof this.#ca !== 'string' || this.#ca.length > 65_536)) ||
+      (this.#withSendStart !== undefined &&
+        typeof this.#withSendStart !== 'function') ||
       (process.env.NODE_DEBUG ?? '').trim().length > 0 ||
       ['http', 'https', 'tls'].some((category) => debuglog(category).enabled)
     )
@@ -468,8 +474,25 @@ export class HttpsAgentTransport implements AgentTransport {
                 socket.remotePort !== endpoint.port
               )
                 throw new Error();
-              dispatched = true;
-              req.end(body);
+              const withSendStart = this.#withSendStart;
+              if (!withSendStart) {
+                dispatched = true;
+                req.end(body);
+                return;
+              }
+              let accepting = true;
+              try {
+                withSendStart(() => {
+                  if (!accepting || dispatched) return;
+                  check();
+                  // Starting the request makes a subsequent failure uncertain.
+                  dispatched = true;
+                  req.end(body);
+                });
+                if (!dispatched) fail('UNAVAILABLE');
+              } finally {
+                accepting = false;
+              }
             } catch {
               fail('UNAVAILABLE');
             }

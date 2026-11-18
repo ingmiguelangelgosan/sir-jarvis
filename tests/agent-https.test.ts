@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { test, type TestContext } from 'node:test';
 import { setTimeout as sleep } from 'node:timers/promises';
+import { TLSSocket } from 'node:tls';
 
 import { AgentGatewayError } from '../src/agents/errors.ts';
 import type { AgentOperationQuery } from '../src/agents/protocol.ts';
@@ -46,6 +47,115 @@ test('HTTPS real entre procesos: Core autoriza, TLS autentica y echo conserva el
     assert.equal(result[key], value[key]);
   assert.equal((await server.stats()).executions, 1);
   assert.equal(server.diagnosticsBytes(), 0);
+});
+
+test('HTTPS: denials and exceptions before send start close the TLS request', async (t) => {
+  let mode: 'deny' | 'throw' | 'allow' = 'deny';
+  let savedStart: (() => void) | undefined;
+  let checks = 0;
+  const { server, transport } = await setup(
+    t,
+    {},
+    {
+      transport: {
+        maxInflight: 1,
+        withSendStart(start) {
+          checks++;
+          if (mode === 'throw') throw new Error('Synthetic gate failure');
+          if (mode === 'allow') {
+            start();
+            start();
+          } else savedStart = start;
+        },
+      },
+    },
+  );
+  const port = Number(new URL(server.origin).port);
+  const closedSockets: Promise<void>[] = [];
+  const destroy = TLSSocket.prototype.destroy;
+  t.mock.method(
+    TLSSocket.prototype,
+    'destroy',
+    function (this: TLSSocket, error?: Error) {
+      if (!this.destroyed && this.remotePort === port)
+        closedSockets.push(
+          new Promise((resolve) => this.once('close', resolve)),
+        );
+      return destroy.call(this, error);
+    },
+  );
+
+  await assert.rejects(
+    transport.execute(request(), signal()),
+    errorCode('UNAVAILABLE', 'not-started'),
+  );
+  assert.ok(savedStart);
+  savedStart();
+  mode = 'throw';
+  await assert.rejects(
+    transport.execute(request(), signal()),
+    errorCode('UNAVAILABLE', 'not-started'),
+  );
+  assert.equal(checks, 2);
+  assert.equal(closedSockets.length, 2);
+  await Promise.all(closedSockets);
+  assert.equal((await server.stats()).requests, 0);
+
+  mode = 'allow';
+  assert.equal(
+    (await transport.execute(request(), signal())).status,
+    'completed',
+  );
+  assert.equal(checks, 3);
+  assert.equal((await server.stats()).requests, 1);
+});
+
+test('HTTPS: a hook failure after send start is uncertain', async (t) => {
+  let starts = 0;
+  const { core } = await setup(
+    t,
+    {},
+    {
+      transport: {
+        withSendStart(start) {
+          start();
+          starts++;
+          throw new Error('Synthetic failure after send start');
+        },
+      },
+    },
+  );
+  const value = request();
+  await assert.rejects(
+    core.execute(actor, value, signal()),
+    errorCode('UNAVAILABLE', 'uncertain'),
+  );
+  await assert.rejects(
+    core.execute(actor, value, signal()),
+    errorCode('UNAVAILABLE', 'uncertain'),
+  );
+  assert.equal(starts, 1);
+});
+
+test('HTTPS: an untrusted peer never reaches the send-start hook', async (t) => {
+  let checks = 0;
+  const { server, transport } = await setup(
+    t,
+    { certificate: 'untrusted' },
+    {
+      transport: {
+        withSendStart: () => {
+          checks++;
+        },
+      },
+    },
+  );
+  assert.equal(checks, 0);
+  await assert.rejects(
+    transport.execute(request(), signal()),
+    errorCode('UNAVAILABLE', 'not-started'),
+  );
+  assert.equal((await server.stats()).requests, 0);
 });
 
 test('HTTPS: cincuenta duplicados concurrentes invocan una vez y otro comando da409', async (t) => {
